@@ -1,0 +1,3 @@
+scripts/case/login/test_login.py
+scripts/case/project/file_list/test_file_setting.py
+scripts/teardown/test_close.py

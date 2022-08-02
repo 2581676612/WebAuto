@@ -1,0 +1,14 @@
+环境配置：
+    1、chromedriver
+        打开谷歌浏览器，点击右上角三个点->帮助->关于，查看当前浏览器版本
+        打开网址：https://registry.npmmirror.com/binary.html?path=chromedriver/
+        找到与上面获取到的版本相同或相近的版本文件夹进入，选择使用环境平台的压缩包下载
+        对下载的压缩包解压后，获取到chromedriver文件，替换到Tools目录下
+        修改根目录下config.cfg->ChromeDriver->file值为解压的文件。注意：文件后缀名也要写上
+    2、mac系统给pycharm添加权限控制pc（上传文件需要自动化控制文件夹）
+        系统偏好设置->安全性与隐私,辅助功能勾选上pycharm
+测试用例：
+    修改根目录下config.cfg->TestCase->case值为待测用例
+    可直接指定测试用例，用例路径从AutoTest下级开始。例：case/test_登录.py
+    也可使用txt文件执行用例集，用例执行顺序为从上到下
+    注：web自动化用例依赖登录，功能用例需在登录状态下执行，且用例最后需带上case/teardown/test_close.py关闭模拟浏览器
