@@ -1,4 +1,3 @@
-import logging
 import pytest
 from .parse import loop_count
 from .web import Chrome
@@ -14,13 +13,14 @@ class BaseLoopCase():
 
 
 class BaseCaseFile():
-    @staticmethod
-    def setup_class(self):
-        Chrome.create_project_quickly()
-        Chrome.open_project()
-        Chrome.upload_file('img', 'img.jpg', True)
-        Chrome.wait_upload()
+    pass
+    # @staticmethod
+    # def setup_class():
+    #     Chrome.create_project_quickly()
+    #     Chrome.open_project()
+    #     Chrome.upload_file(select_all=True)
+    #     Chrome.wait_upload()
 
-    @staticmethod
-    def teardown_class():
-        Chrome.delete_project()
+    # @staticmethod
+    # def teardown_class():
+    #     Chrome.delete_project()

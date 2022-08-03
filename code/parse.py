@@ -1,12 +1,14 @@
 import configparser
-import json
 import os
 
 config = configparser.ConfigParser()
 config.read(os.path.join(os.path.dirname(os.path.dirname(__file__)), 'config.cfg'))
 
+
+# 解析配置文件参数
 case = config.get('TestCase', 'case')
 chrome_driver = config.get('ChromeDriver', 'file')
+firefox_run = config.get('FireFoxDriver', 'run')
 firefox_driver = config.get('FireFoxDriver', 'file')
 web_type = config.get('Environment', 'web_type')
 usr_1_name = config.get('UserInfo', 'usr_1_name')
@@ -20,3 +22,8 @@ usr_3 = config.get('UserInfo', 'usr_3')
 pwd_3 = config.get('UserInfo', 'pwd_3')
 project_name = config.get('project', 'name')
 loop_count = config.get('Loop', 'count')
+
+
+# 自定义参数
+file_type_dict = {'img': ['bmp', 'tiff', 'gif', 'png', 'jpeg', 'jpg'],
+                  'video': ['avi', 'wmv', 'mpg', 'mpeg', 'mov', 'rm', 'ram', 'swf', 'flv', 'mp4']}

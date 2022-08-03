@@ -5,16 +5,16 @@ from code.base_case import BaseCase
 class TestCaseFileChangeInfo(BaseCase):
     def test_change_name(self):
         """修改文件名称"""
-        Chrome.choose_test_file()
+        Chrome.choose_test_file(file_type='img')
         Chrome.change_file_name_by_info()
 
     def test_change_graded(self):
         """修改文件评分"""
         Chrome.change_file_grade_by_info()
 
-    def test_change_discription(self):
+    def test_change_description(self):
         """修改文件描述"""
-        Chrome.change_file_discription_by_info()
+        Chrome.change_file_description_by_info()
 
     def test_change_tag(self):
         """修改文件标签"""

@@ -5,7 +5,7 @@ from code.base_case import BaseCaseFile
 class TestCaseFileImgDetail(BaseCaseFile):
     def test_file_detail_view(self):
         """进入文件详情页"""
-        Chrome.enter_file_detail_view()
+        Chrome.enter_file_detail_view(file_type='img')
         Chrome.check_in_file_detail_view()
 
     def test_file_change(self):
