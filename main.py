@@ -1,5 +1,5 @@
-from code.setting import Setting
-from code.parse import case
+from core.base.setting import Setting
+from core.base.parse import case
 import os
 
 

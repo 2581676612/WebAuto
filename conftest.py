@@ -1,7 +1,10 @@
 import pytest
+import core.base.parse as parse
+
 from py._xmlgen import html
-from code.web import Chrome, FireFox
-from code.logger import Logger
+from core.browser.chrome import Chrome
+from core.browser.firefox import FireFox
+from core.base.logger import logger
 
 _driver = None
 
@@ -10,27 +13,14 @@ def pytest_configure(config):
     # Environment配置
     # config._metadata.pop('JAVA_HOME')
     config._metadata.pop('Packages')
-    config._metadata.pop('Platform')
+    # config._metadata.pop('Platform')
     config._metadata.pop('Plugins')
-    config._metadata.pop('Python')
+    # config._metadata.pop('Python')
 
 
 @pytest.mark.optionalhook
 def pytest_html_results_summary(prefix):
-    prefix.extend([html.p('测试人员：游弘扬')])
-
-
-# 删除link列
-@pytest.mark.optionalhook
-def pytest_html_results_table_header(cells):
-    # cells.pop(-1)
-    pass
-
-
-@pytest.mark.optionalhook
-def pytest_html_results_table_row(report, cells):
-    # cells.pop(-1)
-    pass
+    prefix.extend([html.p(f'测试人员：{parse.test_people}')])
 
 
 @pytest.mark.hookwrapper
@@ -48,7 +38,7 @@ def pytest_runtest_makereport(item):
                 html = f'<div><img src="data:image/png;base64,{chrome_img}" alt="screenshot" style="width:800px;height:400px;"></div>'
                 extra.append(pytest_html.extras.html(html))
         else:
-            Logger.info('Chrome非运行状态，无需截图！')
+            logger.info('Chrome非运行状态，无需截图！')
         firefox_name = report.nodeid.replace("::", "_") + ".png"
         firefox_img = _firefox_screenshot()
         if firefox_img:
@@ -56,20 +46,20 @@ def pytest_runtest_makereport(item):
                 f_html = f'<div><img src="data:image/png;base64,{firefox_img}" alt="screenshot" style="width:800px;height:400px;"></div>'
                 extra.append(pytest_html.extras.html(f_html))
         else:
-            Logger.info('Firefox非运行状态，无需截图！')
+            logger.info('Firefox非运行状态，无需截图！')
         report.extra = extra
 
 
 def _chrome_screenshot():
     '''截图保存为base64'''
-    if Chrome.driver_status:
+    if Chrome.Control.driver_status:
         return Chrome.driver.get_screenshot_as_base64()
     else:
         return False
 
 def _firefox_screenshot():
     '''截图保存为base64'''
-    if FireFox.driver_status:
+    if FireFox and FireFox.Control.driver_status:
         return FireFox.driver.get_screenshot_as_base64()
     else:
         return False
@@ -77,8 +67,10 @@ def _firefox_screenshot():
 @pytest.mark.optionalhook
 def pytest_html_results_table_header(cells):
     cells.insert(1, html.th('Description'))
+    cells.pop()
 
 
 @pytest.mark.optionalhook
 def pytest_html_results_table_row(report, cells):
     cells.insert(1, html.td(report.description))
+    cells.pop()
