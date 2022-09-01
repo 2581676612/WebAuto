@@ -2,7 +2,7 @@ from core.browser.chrome import Chrome
 from core.base.base_case import BaseCaseFile
 
 
-class TestCaseFileImgDetail(BaseCaseFile):
+class TestCase(BaseCaseFile):
     def test_file_detail_view(self):
         """进入文件详情页"""
         Chrome.Project.enter_file_detail_view(file_type='img')

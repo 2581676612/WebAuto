@@ -2,7 +2,7 @@ from core.browser.chrome import Chrome
 from core.base.base_case import BaseCase
 
 
-class TestCaseFileChangeInfo(BaseCase):
+class TestCase(BaseCase):
     def test_change_name(self):
         """修改文件名称"""
         Chrome.Project.choose_test_file(file_type='img')

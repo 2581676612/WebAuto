@@ -2,7 +2,7 @@ from core.browser.chrome import Chrome
 from core.base.base_case import BaseCaseFile
 
 
-class TestCaseFileSetting(BaseCaseFile):
+class TestCase(BaseCaseFile):
     def test_file_select_all(self):
         """选中文件测试"""
         Chrome.Project.select_all_file()

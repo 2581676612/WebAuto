@@ -3,7 +3,7 @@ from core.base.base_case import BaseCase
 from core.base.parse import usr_2_name
 
 
-class TestCaseRemoveMember(BaseCase):
+class TestCase(BaseCase):
     def test_remove_member(self):
         """移除用户测试"""
         Chrome.Project.open_project_menu()

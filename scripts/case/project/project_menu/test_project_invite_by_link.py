@@ -5,7 +5,7 @@ from core.base.parse import usr_2, pwd_2
 from core.base.parse import usr_3, pwd_3
 
 
-class TestCaseInviteByLink(BaseCase):
+class TestCase(BaseCase):
     def test_invite_link(self):
         """链接邀请测试"""
         Chrome.Project.open_project_menu()

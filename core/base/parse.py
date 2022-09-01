@@ -21,6 +21,8 @@ usr_3_name = config.get('UserInfo', 'usr_3_name')
 usr_3 = config.get('UserInfo', 'usr_3')
 pwd_3 = config.get('UserInfo', 'pwd_3')
 project_name = config.get('Project', 'name')
+camera = config.get('Project', 'camera')
+copy_camera = config.get('Project', 'copy_camera')
 test_people = config.get('Report', 'test_people')
 loop_count = config.get('Loop', 'count')
 

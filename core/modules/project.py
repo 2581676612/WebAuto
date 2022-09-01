@@ -14,98 +14,6 @@ from core.modules.control import Control
 
 
 class Project(Control):
-    def login_by_password(self, usr=parse.usr_1, pwd=parse.pwd_1):
-        """密码登录"""
-        url = self.url + 'login'
-        self.open_page(url)
-        self.click_by_condition('xpath', '//li[contains(text(), "密码登录")]', '密码登录')
-        logger.info('输入账号')
-        self.finds_by_condition('class', 'el-input__inner')[0].clear()
-        self.finds_by_condition('class', 'el-input__inner')[0].send_keys(usr)
-        time.sleep(1)
-        logger.info('输入密码')
-        self.finds_by_condition('class', 'el-input__inner')[1].clear()
-        self.finds_by_condition('class', 'el-input__inner')[1].send_keys(pwd)
-        time.sleep(1)
-        self.click_by_condition('class', 'login-btn-container', '登录')
-        time.sleep(3)
-        if self.find_by_condition('class', 'avatar-wrapper'):
-            logger.info('登录成功！')
-        else:
-            logger.error('登录失败！')
-            pytest.exit('登录失败，测试停止！')
-        time.sleep(5)
-        self.close_update_info()
-        self.close_message()
-
-    @staticmethod
-    def create_user():
-        """测试环境随机创建用户"""
-        user_start_list = ['130', '139', '150', '186']
-        user_start = random.sample(user_start_list, 1)[0]
-        user_end = str(random.randint(10000000, 99999999))
-        user = f'{user_start}{user_end}'
-        logger.info(f'随机账号为：{user}')
-        return user
-
-    def login_by_code(self, usr=parse.usr_1, code='888888'):
-        """验证码登录"""
-        url = self.url + 'login'
-        self.open_page(url)
-        logger.info('输入账号')
-        self.finds_by_condition('class', 'el-input__inner')[0].clear()
-        self.finds_by_condition('class', 'el-input__inner')[0].send_keys(usr)
-        time.sleep(1)
-        logger.info('输入验证码')
-        self.find_by_condition('xpath', '//label[contains(text(), "发送验证码")]').click()
-        self.finds_by_condition('class', 'el-input__inner')[1].clear()
-        self.finds_by_condition('class', 'el-input__inner')[1].send_keys(code)
-        time.sleep(1)
-        self.click_by_condition('class', 'login-btn-container', '登录')
-        time.sleep(10)
-        start_button = self.check_button('开启阅流')
-        if start_button:
-            time.sleep(5)
-            choose_button = self.check_button('其他')
-            choose_button.click()
-            time.sleep(1)
-            start_button.click()
-            time.sleep(3)
-            self.click_by_condition('class', 'skip')
-        if self.find_by_condition('class', 'avatar-wrapper'):
-            logger.info('登录成功！')
-        else:
-            logger.error('登录失败！')
-            pytest.exit('登录失败，测试停止！')
-        time.sleep(5)
-        self.close_update_info()
-        self.close_message()
-
-    def login_out(self):
-        """退出登录"""
-        self.click_by_condition_index('class', 'avatar-wrapper', 1, '用户头像')
-        self.click_by_condition('xpath', '//div[contains(text(), "退出登录")]', '退出登录')
-        self.click_by_condition('xpath', '//div[text()="退出 "]', '退出', 3)
-
-    def close_update_info(self):
-        """关闭更新弹窗"""
-        for i in range(3):
-            if self.check_condition('class', 'footer') and not self.click_by_condition('class', 'close-box'):
-                close_ele = self.finds_by_condition('class', 'footer')
-                if close_ele:
-                    logger.info('点击关闭更新提示')
-                    close_ele[0].click()
-                    time.sleep(2)
-                    break
-            time.sleep(3)
-
-    def close_message(self):
-        """关闭通知"""
-        while self.check_condition('class', 'close-box'):
-            logger.info('点击关闭消息提示')
-            self.finds_by_condition('class', 'close-box')[0].click()
-            time.sleep(3)
-
     def back_to_project_index(self):
         """返回项目首页"""
         for i in range(5):
@@ -119,11 +27,10 @@ class Project(Control):
             logger.error('未返回到项目首页')
             assert 0
 
-
-    def open_project_menu(self):
+    def open_project_menu(self, p_name=parse.project_name):
         """打开项目菜单栏"""
         try:
-            setting_ele = self.finds_by_condition('xpath', f'//span[contains(text(), "{parse.project_name}")]/../div[2]')
+            setting_ele = self.finds_by_condition('xpath', f'//span[contains(text(), "{p_name}")]/../div[2]')
             if len(setting_ele) > 1:
                 logger.info('检测到相关项目不止一个，默认使用第一个测试')
             setting_ele[0].click()
@@ -184,78 +91,12 @@ class Project(Control):
         else:
             logger.info('检测到项目内不存在文件')
 
-    def open_upload_page(self):
-        """打开上传记录"""
-        upload_ele = self.find_by_condition('class', 'uploadList')
-        if upload_ele.get_attribute('aria-hidden') == 'true':
-            logger.info('上传进度弹窗为隐藏状态')
-            self.click_by_condition('class', 'iconchuanshu_chuanshu', '打开传输窗口')
-        else:
-            logger.info('上传进度弹窗为显示状态')
-
-    def close_upload_page(self):
-        """关闭上传记录"""
-        upload_ele = self.find_by_condition('class', 'uploadList')
-        if upload_ele.get_attribute('aria-hidden') == 'true':
-            logger.info('上传进度弹窗为隐藏状态')
-        else:
-            logger.info('上传进度弹窗为显示状态，点击关闭')
-            button_ele = self.find_by_condition('class', 'iconchuanshu_chuanshu')
-            self.driver.execute_script("arguments[0].click();", button_ele)
-            time.sleep(3)
-            # self.click_by_condition('class', 'iconchuanshu_chuanshu', '关闭传输窗口')
-
-    def is_file_upload(self):
-        """检测是否存在文件上传"""
-        if self.check_condition('xpath', '//span[contains(text(), "没有正在上传的文件")]'):
-            logger.info('没有正在上传的文件')
-            self.close_upload_page()
-            return False
-        else:
-            return True
-
-    def clear_upload_record(self):
-        """清空上传记录"""
-        while self.is_file_upload():
-            self.click_by_condition('class', 'el-dropdown', '更多设置')
-            self.click_by_condition('class', 'el-dropdown-menu__item', '清空已完成记录')
-        else:
-            logger.info('清除成功')
-
-    def wait_upload(self):
-        """等待上传成功"""
-        self.open_upload_page()  # 打开上传记录
-        if not self.is_file_upload():  # 检测是否存在文件上传
-            logger.info('没有正在上传的文件')
-            self.close_upload_page()
-            return False
-        success = False
-        start_time = time.time()
-        # 设置文件上传最多三十分钟
-        while not success:
-            if time.time() - start_time < 1800:
-                status_ele = self.find_by_condition('class', 'total-file-info')
-                status = status_ele.get_attribute('innerText').strip()
-                if '上传成功' in status:
-                    logger.info('文件上传完成！')
-                    time.sleep(5)
-                    self.clear_upload_record()
-                    self.close_upload_page()
-                    success = True
-                else:
-                    logger.info(status)
-                    time.sleep(5)
-            else:
-                logger.error('文件上传超时！')
-                self.close_upload_page()
-                assert 0
-
     def upload_file(self, file='', select_all=False):
         """上传文件"""
         for i in range(5):
             self.touch_to_project()
             self.click_by_condition('xpath', '//button[contains(text(), "上传/新建")]', '上传/新建')
-            self.click_by_condition('class', 'el-upload-dragger', '上传文件')
+            self.click_by_condition('class', 'el-upload-dragger', '上传文件', 3)
             self.choose_file_to_upload(file, select_all)
             self.open_upload_page()
             if self.is_file_upload():
@@ -267,16 +108,11 @@ class Project(Control):
         for i in range(5):
             self.touch_to_project()
             self.click_by_condition('xpath', '//button[contains(text(), "上传/新建")]', '上传/新建')
-            self.click_by_condition('xpath', '//div[contains(text(), "上传")]/../div[2]//div[contains(text(), "文件夹")]', '上传文件夹')
+            self.click_by_condition('xpath', '//div[contains(text(), "上传")]/../div[2]//div[contains(text(), "文件夹")]',
+                                    '上传文件夹', 3)
             self.choose_file_to_upload()
             time.sleep(3)
-            upload_pos = ImgDeal.find_upload()
-            if upload_pos:
-                logger.info(f'移动到坐标--{upload_pos[0]}, {upload_pos[1]}')
-                pyautogui.moveTo(upload_pos[0], upload_pos[1])
-                logger.info('点击')
-                pyautogui.click()
-                time.sleep(2)
+            self.click_upload_img()
             self.open_upload_page()
             if self.is_file_upload():
                 break
@@ -287,7 +123,8 @@ class Project(Control):
         self.touch_to_project()
         while self.check_condition('xpath', '//div[@class="project-title"]/span[contains(text(), "文件")]'):
             logger.info('检测到项目内存在文件/文件夹')
-            self.click_by_condition('xpath', '//*[@id="project-file__content"]//div[@class="el-tooltip more-icon item"]', '文件设置')
+            self.click_by_condition('xpath',
+                                    '//*[@id="project-file__content"]//div[@class="el-tooltip more-icon item"]', '文件设置')
             logger.info('点击--删除')
             self.finds_by_condition('xpath', '//div[contains(text(), "删除")]')[-1].click()
             time.sleep(3)
@@ -301,7 +138,8 @@ class Project(Control):
         self.touch_to_project()
         while self.check_condition('xpath', '//div[@class="project-title"]/span[contains(text(), "文件夹")]'):
             logger.info('检测到项目内存在文件夹')
-            self.click_by_condition('xpath', '//*[@class="directory-info"]//div[@class="el-tooltip more-icon item"]', '文件夹设置')
+            self.click_by_condition('xpath', '//*[@class="directory-info"]//div[@class="el-tooltip more-icon item"]',
+                                    '文件夹设置')
             logger.info('点击--删除')
             self.finds_by_condition('xpath', '//div[contains(text(), "删除")]')[-1].click()
             time.sleep(3)
@@ -318,7 +156,9 @@ class Project(Control):
             return True
         self.touch_to_project()
         while self.check_condition('xpath', f'//div[@class="file-subInfo"]//span[contains(text(), "{file_name}")]'):
-            self.click_by_condition('xpath', f'//div[@class="file-subInfo"]//span[contains(text(), "{file_name}")]/../../../../div[@class="el-tooltip more-icon item"]', '更多设置')
+            self.click_by_condition('xpath',
+                                    f'//div[@class="file-subInfo"]//span[contains(text(), "{file_name}")]/../../../../div[@class="el-tooltip more-icon item"]',
+                                    '更多设置')
             logger.info('点击--删除')
             self.finds_by_condition('xpath', '//div[contains(text(), "删除")]')[-1].click()
             time.sleep(3)
@@ -408,7 +248,7 @@ class Project(Control):
                            5: ['紫色', 'rgb(104, 87, 255)'],
                            6: ['绿色', 'rgb(2, 196, 169)'],
                            7: ['橙色', 'rgb(241, 143, 96)']
-                            }
+                           }
         # 随机选择标记颜色
         choose_color_num = random.randint(1, 7)
         color = flag_color_dict.get(choose_color_num)[0]
@@ -419,7 +259,8 @@ class Project(Control):
         if choose_color_num == 1:
             self.find_by_condition('xpath', '//*[@class="color-marker"]/div[@class="clear-icon-box"]').click()
         else:
-            self.find_by_condition('xpath', f'//*[@class="color-marker-wrapper"]/div[@class="color-marker"]/div[{choose_color_num}]/i').click()
+            self.find_by_condition('xpath',
+                                   f'//*[@class="color-marker-wrapper"]/div[@class="color-marker"]/div[{choose_color_num}]/i').click()
         # 点击完成创建
         self.click_by_condition('xpath', '//span[contains(text(), "完成创建")]', '完成创建', 1)
         # 等待检测到创建项目成功提示
@@ -449,7 +290,8 @@ class Project(Control):
 
     def get_my_project_list(self):
         # 获取我的项目列表
-        project_ele_list = self.finds_by_condition('xpath', '//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[@class="cardList-clone-wrapper "]')
+        project_ele_list = self.finds_by_condition('xpath',
+                                                   '//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[@class="cardList-clone-wrapper "]')
         project_list = [e.get_attribute('innerText') for e in project_ele_list]
         logger.info(f'项目列表为：{project_list}')
         return project_list
@@ -459,7 +301,8 @@ class Project(Control):
         logger.info('检测是否存在创建的测试项目')
         project_list = self.get_my_project_list()  # 获取项目列表
         while project in project_list:  # 列表内存在测试项目，则删除
-            project_ele_list = self.finds_by_condition('xpath', '//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[@class="cardList-clone-wrapper "]')
+            project_ele_list = self.finds_by_condition('xpath',
+                                                       '//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[@class="cardList-clone-wrapper "]')
             project_count = len(project_ele_list)
             logger.info(f'项目总数为：{project_count}')
             index = 1
@@ -467,10 +310,13 @@ class Project(Control):
                 p_name = ele.get_attribute('innerText')
                 if p_name == project:
                     logger.info('检测到创建测试项目')
-                    self.click_by_condition('xpath', f'//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[{index}]/div[1]/div[2]', '更多设置')
+                    self.click_by_condition('xpath',
+                                            f'//span[contains(text(), "我的项目")]/../..//ul[@class="cardList"]/div[1]/div[{index}]/div[1]/div[2]',
+                                            '更多设置')
                     logger.info('点击--删除项目')
                     self.finds_by_condition('xpath', '//div[contains(text(), "删除项目")]')[-1].click()
-                    self.click_by_condition('xpath', '//*[@class="space-round"]/div[2]/div[contains(text(), "删除")]', '删除', 1)
+                    self.click_by_condition('xpath', '//*[@class="space-round"]/div[2]/div[contains(text(), "删除")]',
+                                            '删除', 1)
                     project_count -= 1
                     cur_project_count = len(self.get_my_project_list())
                     logger.info(f'当前项目数为：{cur_project_count}')
@@ -497,7 +343,8 @@ class Project(Control):
         # 选择邀请身份
         self.click_by_condition_index('xpath', '//div[@class="identity-content-select"]', -1, '选择身份')
         identity = '管理员' if super else '成员'
-        self.click_by_condition_index('xpath', f'//div[@class="select-item"]/p[contains(text(), "{identity}")]', -1, f'{identity}')
+        self.click_by_condition_index('xpath', f'//div[@class="select-item"]/p[contains(text(), "{identity}")]', -1,
+                                      f'{identity}')
         time.sleep(5)
         # 选择邀请方式
         invite_type = "从企业内" if company else "链接扫码"
@@ -508,12 +355,15 @@ class Project(Control):
             time.sleep(2)
             result_ele = self.check_condition('xpath', '//div[@class="content-item user-item-box"]')
             if result_ele:
-                status = self.finds_by_condition('xpath', '//div[@class="content-item user-item-box"]/span[2]')[0].get_attribute('innerText')
+                status = self.finds_by_condition('xpath', '//div[@class="content-item user-item-box"]/span[2]')[
+                    0].get_attribute('innerText')
                 if '已邀请' in status:
                     logger.info('该用户已被邀请')
                     self.close_invite_view()
                     return True
-                self.click_by_condition_index('xpath', '//div[@class="content-item user-item-box"]/span[contains(text(), "邀请")]', -1, '邀请')
+                self.click_by_condition_index('xpath',
+                                              '//div[@class="content-item user-item-box"]/span[contains(text(), "邀请")]',
+                                              -1, '邀请')
             if self.wait_until_xpath('//p[contains(text(), "邀请加入成功")]'):
                 logger.info('邀请成功')
                 self.close_invite_view()
@@ -536,33 +386,6 @@ class Project(Control):
         elif self.check_condition('class', 'join-btn'):  # 未加入，点击加入
             self.click_by_condition('class', 'join-btn', '加入项目')
             time.sleep(3)
-        else:
-            logger.error('界面异常')
-            assert 0
-
-    def accept_shoot_invite(self, url):
-        """点击链接，加入拍摄项目
-            url--邀请链接
-        """
-        self.open_page(url)  # 打开邀请链接
-        self.refresh()  # 刷新页面
-        if self.check_condition('xpath', '//div[contains(text(), "进入拍摄项目")]'):  # 显示进入项目，表示已加入
-            logger.info('你已在项目内')
-            self.click_by_condition('xpath', '//div[contains(text(), "进入拍摄项目")]')  # 点击进入项目
-            time.sleep(5)
-            for i in range(4):  # 跳过拍摄新手引导
-                if self.check_condition('class', 'skip-btn'):
-                    self.click_by_condition('class', 'skip-btn')
-                    break
-                time.sleep(3)
-        elif self.check_condition('xpath', '//div[contains(text(), "加入拍摄项目")]'):
-            self.click_by_condition('xpath', '//div[contains(text(), "加入拍摄项目")]')  # 点击加入拍摄项目
-            time.sleep(3)
-            for i in range(4):  # 跳过新手引导
-                if self.check_condition('class', 'skip-btn'):
-                    self.click_by_condition('class', 'skip-btn')
-                    break
-                time.sleep(3)
         else:
             logger.error('界面异常')
             assert 0
@@ -595,10 +418,14 @@ class Project(Control):
         member_ele_list = self.finds_by_condition('class', 'infinite-list-item')  # 获取成员元素列表
         while len(member_ele_list) > 1:  # 成员数大于1，就一直检测
             for i in range(1, len(member_ele_list)):  # 遍历成员列表（删除成员后，列表会变动，需删除后重新获取）
-                cur_member = self.find_by_condition('xpath', f'//li[@class="infinite-list-item"][{i+1}]/div[1]/span[1]').get_attribute('innerText').strip()
+                cur_member = self.find_by_condition('xpath',
+                                                    f'//li[@class="infinite-list-item"][{i + 1}]/div[1]/span[1]').get_attribute(
+                    'innerText').strip()
                 # 未传入用户名，每个用户都删除；传入用户名，删除指定用户
                 if (not member) or (member and cur_member == member):
-                    self.click_by_condition('xpath', f'//li[@class="infinite-list-item"][{i+1}]/div[@class="ops-wrapper"]', '设置')
+                    self.click_by_condition('xpath',
+                                            f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="ops-wrapper"]',
+                                            '设置')
                     self.click_by_condition_index('xpath', '//div[contains(text(), "移除成员")]', -1, '移除成员')
                     self.click_by_condition('xpath', '//div[contains(text(), "移除 ")]', '移除')
                     if self.wait_until_xpath('//p[contains(text(), "移除成员成功")]'):
@@ -626,24 +453,25 @@ class Project(Control):
         for i in range(1, len(member_ele_list)):
             # 遍历检测成员
             cur_member = self.find_by_condition('xpath',
-                                                f'//li[@class="infinite-list-item"][{i + 1}]/div[1]/span[1]').\
-                                                get_attribute('innerText').strip()
+                                                f'//li[@class="infinite-list-item"][{i + 1}]/div[1]/span[1]'). \
+                get_attribute('innerText').strip()
             if cur_member == member:  # 当前成员是要修改的成员
                 # 判断当前角色，是管理员就修改为成员，成员修改为管理员
                 cur_role = self.find_by_condition('xpath',
-                                        f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="role"]').\
-                                        get_attribute('innerText').strip()
+                                                  f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="role"]'). \
+                    get_attribute('innerText').strip()
                 change_role = '成员' if cur_role == '管理员' else '管理员'
                 # 点击成员设置
                 self.click_by_condition('xpath',
                                         f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="ops-wrapper"]',
                                         '设置')
                 # 点击要修改的身份
-                self.click_by_condition_index('xpath', f'//span[contains(text(), "{change_role}")]', -1, f'{change_role}')
+                self.click_by_condition_index('xpath', f'//span[contains(text(), "{change_role}")]', -1,
+                                              f'{change_role}')
                 # 等待操作成功toast提示
                 if self.wait_until_text(text='操作成功') and self.find_by_condition('xpath',
-                                                        f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="role"]').\
-                                                        get_attribute('innerText').strip() == change_role:
+                                                                                f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="role"]'). \
+                        get_attribute('innerText').strip() == change_role:
                     logger.info(f'修改成员-{member} 角色成功：{cur_role}->{change_role}')
                     time.sleep(3)
                     break
@@ -656,7 +484,8 @@ class Project(Control):
     def open_project(self, p_name=parse.project_name):
         """点击项目名，打开项目"""
         try:
-            setting_ele = self.finds_by_condition('xpath', f'//div[@class="cardList-clone-wrapper "]//span[contains(text(), "{p_name}")]')
+            setting_ele = self.finds_by_condition('xpath',
+                                                  f'//div[@class="cardList-clone-wrapper "]//span[contains(text(), "{p_name}")]')
             if len(setting_ele) > 1:
                 logger.info('检测到相关项目不止一个，默认使用第一个测试')
             setting_ele[0].click()
@@ -931,20 +760,13 @@ class Project(Control):
 
     def download_all_files(self):
         """下载所有文件"""
-        shutil.rmtree(self.download_path)  # 清空下载文件夹
-        os.mkdir(self.download_path)
         self.select_all_file()  # 选中所有文件
         self.click_by_condition('class', 'iconjiaofu_download', '批量下载')  # 点击下载
         self.click_by_text('div', '确认下载')  # 二次确认
         self.click_by_img('allow_download', '允许下载多个文件')  # 浏览器授权允许下载多个文件
         time.sleep(10)
         file_count = len(self.get_project_file_list())  # 获取当前项目文件数
-        download_count = len(os.listdir(self.download_path))  # 通过检测下载文件夹文件数判断下载是否成功
-        if download_count == file_count:
-            logger.info('检测到下载文件夹文件数相同，下载成功')
-        else:
-            logger.error('下载文件夹和测试项目文件数不一致，下载失败')
-            assert 0
+        self.check_download(file_count)
 
     def check_in_file_detail_view(self):
         """检测是否进入详情页"""
@@ -960,25 +782,13 @@ class Project(Control):
         self.click_by_condition_index('xpath', '//*[@id="project-file__content"]//\
                                                 div[@class="el-tooltip more-icon item"]', file_index, '文件设置')
         self.click_by_condition_index('xpath', '//div[contains(text(), "查看详情")]', -1, '查看详情')
-
-    @staticmethod
-    def get_ele_style(ele=''):
-        """获取元素样式"""
-        return ele.get_attribute('style').strip()
+        time.sleep(5)
 
     def get_ele_height(self, ele=''):
         """获取元素高度"""
         height = re.findall(r'height: +(\d+.?\d+)px', self.get_ele_style(ele))
         if height:
             return int(eval(height[0]))
-        else:
-            return 0
-
-    def get_ele_width(self, ele=''):
-        """获取元素宽度"""
-        width = re.findall(r'width: +(\d+.?\d+)px', self.get_ele_style(ele))
-        if width:
-            return int(eval(width[0]))
         else:
             return 0
 
@@ -995,7 +805,7 @@ class Project(Control):
             img = self.find_by_condition('class', 'viewer-move')  # 获取图像元素
             img_height = self.get_ele_height(img)  # 获取图像高度
             logger.info(f'图片高度为: {img_height}')
-            if abs(player_height-img_height) <= 1:  # 允许图片和播放器有1px误差
+            if abs(player_height - img_height) <= 1:  # 允许图片和播放器有1px误差
                 logger.info('上下撑满成功')
                 break
         else:
@@ -1015,7 +825,7 @@ class Project(Control):
             img = self.find_by_condition('class', 'viewer-move')  # 获取图像元素
             img_width = self.get_ele_width(img)  # 获取图像宽度
             logger.info(f'图片宽度为: {img_width}')
-            if abs(player_width-img_width) <= 1:  # 允许图片和播放器有1px误差
+            if abs(player_width - img_width) <= 1:  # 允许图片和播放器有1px误差
                 logger.info('左右撑满成功')
                 break
         else:
@@ -1075,8 +885,9 @@ class Project(Control):
 
     def open_keyboard_guide(self):
         """显示键盘快捷键"""
-        self.hover('keyboard_guide')  # 鼠标悬停在元素上方，显示'键盘快捷键'
-        time.sleep(2)
+        # self.hover('keyboard_guide')  # 鼠标悬停在元素上方，显示'键盘快捷键'
+        # time.sleep(2)
+        self.click_by_condition_index('class', 'player-ctrl__item--hover', -2, '键盘快捷键')
         keyboard_button = self.find_by_condition('xpath', '//div[contains(text(), "键盘快捷键")]/../../..')  # 获取'键盘快捷键'按钮元素
         keyboard_button_style = self.get_ele_style(keyboard_button)  # 获取'键盘快捷键'按钮样式
         if 'display' in keyboard_button_style:  # 判断按钮是否显示
@@ -1169,13 +980,13 @@ class Project(Control):
         if self.check_condition('class', 'iconzanting_zanting'):
             logger.info('当前播放器为播放状态')
         else:
-            self.click_by_condition_index('class', 'player-ctrl__item', 0, '播放')
+            self.click_by_condition_index('class', 'player-ctrl__item', 0, '播放', 0)
 
     def video_player_stop(self):
         """点击播放器开关"""
         if self.check_condition('class', 'iconzanting_zanting'):
             logger.info('当前播放器为播放状态')
-            self.click_by_condition('class', 'iconzanting_zanting', '暂停')
+            self.click_by_condition('class', 'iconzanting_zanting', '暂停', 0)
         else:
             logger.info('当前播放器为暂停状态')
 
@@ -1267,10 +1078,21 @@ class Project(Control):
         """点击音量控制"""
         self.click_by_condition_index('class', 'player-ctrl__item', 5, '音量控制')
 
+    def is_no_sound(self):
+        """检测是否静音状态"""
+        voice_img = self.find_by_condition('xpath', '//img[@class="icon"]')
+        src = voice_img.get_attribute('src').strip()
+        if 'AAAJu' in src:  # 非静音图片地址带有aGG字符串
+            logger.info('检测到音量图标为非静音图片')
+            return False
+        else:
+            logger.info('检测到音量图标为静音图片')
+            return True
+
     def video_sound_close(self):
         """静音"""
         self.video_sound_control()
-        if self.check_img('sound_close', '静音'):
+        if self.is_no_sound():
             return True
         else:
             assert 0
@@ -1278,10 +1100,10 @@ class Project(Control):
     def video_sound_open(self):
         """取消静音"""
         self.video_sound_control()
-        if self.check_img('sound_open', '解除静音'):
-            return True
-        else:
+        if self.is_no_sound():
             assert 0
+        else:
+            return True
 
     def change_video_time_code_to_normal(self):
         """时间码格式修改--标准"""
@@ -1319,6 +1141,7 @@ class Project(Control):
             assert 0
 
     def control_fps_back(self):
+        """视频文件切换上一帧"""
         cur_fps = self.get_video_player_time()
         self.click_by_condition('class', 'iconskip-back2', '上一帧')
         fps = self.get_video_player_time()
@@ -1329,6 +1152,7 @@ class Project(Control):
             assert 0
 
     def control_fps_forward(self):
+        """视频文件切换下一帧"""
         cur_fps = self.get_video_player_time()
         self.click_by_condition('class', 'iconskip_forward2', '下一帧')
         fps = self.get_video_player_time()
@@ -1338,3 +1162,42 @@ class Project(Control):
             logger.error('切换下一帧失败')
             assert 0
 
+    def change_video_views_quality(self):
+        """修改视频播放画质"""
+        current_quality = self.finds_by_condition('class', 'player-ctrl__item--hover')[-5]
+        self.click_by_condition_index('class', 'player-ctrl__item', -5, '画质切换')
+        quality_ele_list = self.finds_by_condition('xpath', '//div[@class="definition-list-item"]//span')
+        if len(quality_ele_list) == 1:
+            logger.info('画质选项为1，无法切换')
+            return True
+        next_quality = self.get_text(quality_ele_list[1])
+        logger.info(f'下一个画质为：{next_quality}')
+        self.click_by_condition_index('class', 'definition-list-item', 1, next_quality, 5)
+        if self.get_text(current_quality) == next_quality:
+            logger.info('画质切换成功')
+        else:
+            logger.error('画质切换失败')
+            assert 0
+
+    def change_video_player_speed(self):
+        """修改视频播放速度"""
+        self.refresh()
+        current_speed = self.finds_by_condition('class', 'player-ctrl__item--hover')[-4]
+        self.click_by_condition_index('class', 'player-ctrl__item', -4, '倍数切换')
+        self.click_by_condition('xpath', '//html/body/ul/li//div[contains(text(), "2.0")]', '2.0倍数')
+        if '2.0' in self.get_text(current_speed):
+            logger.info('当前倍数为2.0')
+        else:
+            logger.error('倍数不为2.0')
+            assert 0
+        self.video_player_start()
+        logger.info('等待五秒检测播放器时间')
+        time.sleep(5)
+        player_time = self.get_player_seconds(self.get_video_player_time())
+        if player_time >= 8:  # 允许有部分误差
+            logger.info('倍数切换成功')
+        else:
+            logger.error('播放器时间和倍数不一致')
+            self.video_player_stop()
+            assert 0
+        self.video_player_stop()

@@ -2,7 +2,7 @@ from core.browser.chrome import Chrome
 from core.base.base_case import BaseCase
 
 
-class TestCaseUpload(BaseCase):
+class TestCase(BaseCase):
     def test_upload_img(self):
         """上传文件测试"""
         Chrome.Project.upload_file(select_all=True)  # 选择test_file文件夹下的文件

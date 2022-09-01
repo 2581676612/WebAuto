@@ -3,7 +3,7 @@ from core.base.base_case import BaseCase
 from core.base.parse import usr_2_name, usr_3_name
 
 
-class TestCaseInviteByCompany(BaseCase):
+class TestCase(BaseCase):
     def test_invite(self):
         """企业内邀请测试"""
         Chrome.Project.open_project_menu()
