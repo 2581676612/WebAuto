@@ -335,29 +335,29 @@ class Control(object):
         if platform_str in ['mac', 'darwin']:
             # 打开文件搜索框
             logger.info('打开搜索框')
-            pyautogui.keyDown('shift')
-            pyautogui.keyDown('command')
-            pyautogui.keyDown('g')
-            time.sleep(1)
-            pyautogui.keyUp('g')
-            pyautogui.keyUp('command')
-            pyautogui.keyUp('shift')
-            # pyautogui.hotkey('shift', 'command', 'g')  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
+            # pyautogui.keyDown('shift')
+            # pyautogui.keyDown('command')
+            # pyautogui.keyDown('g')
+            # time.sleep(1)
+            # pyautogui.keyUp('g')
+            # pyautogui.keyUp('command')
+            # pyautogui.keyUp('shift')
+            pyautogui.hotkey('shift', 'command', 'g', interval=0.25)  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
             time.sleep(2)
             # 粘贴文件路径
             logger.info('粘贴文件路径')
-            pyautogui.hotkey('command', 'v')
+            pyautogui.hotkey('command', 'v', interval=0.25)
             time.sleep(2)
             # 回车确定
             pyautogui.press('Return')
             time.sleep(1)  # 必须停留一下，从粘贴到连续键入两个回车键有问题
             if select_all:
                 logger.info('全选')
-                pyautogui.hotkey('command', 'a')
+                pyautogui.hotkey('command', 'a', interval=0.25)
                 time.sleep(1)
             pyautogui.press('Return')
         elif 'windows' in platform_str:
-            pyautogui.hotkey('ctrl', 'v')
+            pyautogui.hotkey('ctrl', 'v', interval=0.25)
             time.sleep(1)
             pyautogui.press('enter')
         time.sleep(3)
@@ -523,7 +523,7 @@ class Control(object):
         if upload_pos:
             logger.info(f'移动到坐标--{upload_pos[0]}, {upload_pos[1]}')
             pyautogui.moveTo(upload_pos[0], upload_pos[1])
-            logger.info('点击')
+            logger.info('点击坐标')
             pyautogui.click()
             time.sleep(2)
 
@@ -541,7 +541,10 @@ class Control(object):
 
     def show_browser(self):
         """浏览器显示在最前面"""
+        self.hide_browser()
+        time.sleep(2)
         self.driver.maximize_window()
+        time.sleep(1)
 
     def hide_browser(self):
         """浏览器最小化"""
