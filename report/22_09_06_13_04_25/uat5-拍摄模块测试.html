@@ -1,0 +1,1324 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="utf-8"/>
+    <title>Test Report</title>
+    <style>body {
+  font-family: Helvetica, Arial, sans-serif;
+  font-size: 12px;
+  /* do not increase min-width as some may use split screens */
+  min-width: 800px;
+  color: #999;
+}
+
+h1 {
+  font-size: 24px;
+  color: black;
+}
+
+h2 {
+  font-size: 16px;
+  color: black;
+}
+
+p {
+  color: black;
+}
+
+a {
+  color: #999;
+}
+
+table {
+  border-collapse: collapse;
+}
+
+/******************************
+ * SUMMARY INFORMATION
+ ******************************/
+#environment td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+}
+#environment tr:nth-child(odd) {
+  background-color: #f6f6f6;
+}
+
+/******************************
+ * TEST RESULT COLORS
+ ******************************/
+span.passed,
+.passed .col-result {
+  color: green;
+}
+
+span.skipped,
+span.xfailed,
+span.rerun,
+.skipped .col-result,
+.xfailed .col-result,
+.rerun .col-result {
+  color: orange;
+}
+
+span.error,
+span.failed,
+span.xpassed,
+.error .col-result,
+.failed .col-result,
+.xpassed .col-result {
+  color: red;
+}
+
+/******************************
+ * RESULTS TABLE
+ *
+ * 1. Table Layout
+ * 2. Extra
+ * 3. Sorting items
+ *
+ ******************************/
+/*------------------
+ * 1. Table Layout
+ *------------------*/
+#results-table {
+  border: 1px solid #e6e6e6;
+  color: #999;
+  font-size: 12px;
+  width: 100%;
+}
+#results-table th,
+#results-table td {
+  padding: 5px;
+  border: 1px solid #E6E6E6;
+  text-align: left;
+}
+#results-table th {
+  font-weight: bold;
+}
+
+/*------------------
+ * 2. Extra
+ *------------------*/
+.log {
+  background-color: #e6e6e6;
+  border: 1px solid #e6e6e6;
+  color: black;
+  display: block;
+  font-family: "Courier New", Courier, monospace;
+  height: 230px;
+  overflow-y: scroll;
+  padding: 5px;
+  white-space: pre-wrap;
+}
+.log:only-child {
+  height: inherit;
+}
+
+div.image {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.image img {
+  width: 320px;
+}
+
+div.video {
+  border: 1px solid #e6e6e6;
+  float: right;
+  height: 240px;
+  margin-left: 5px;
+  overflow: hidden;
+  width: 320px;
+}
+div.video video {
+  overflow: hidden;
+  width: 320px;
+  height: 240px;
+}
+
+.collapsed {
+  display: none;
+}
+
+.expander::after {
+  content: " (show details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+.collapser::after {
+  content: " (hide details)";
+  color: #BBB;
+  font-style: italic;
+  cursor: pointer;
+}
+
+/*------------------
+ * 3. Sorting items
+ *------------------*/
+.sortable {
+  cursor: pointer;
+}
+
+.sort-icon {
+  font-size: 0px;
+  float: left;
+  margin-right: 5px;
+  margin-top: 5px;
+  /*triangle*/
+  width: 0;
+  height: 0;
+  border-left: 8px solid transparent;
+  border-right: 8px solid transparent;
+}
+.inactive .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #E6E6E6;
+}
+.asc.active .sort-icon {
+  /*finish triangle*/
+  border-bottom: 8px solid #999;
+}
+.desc.active .sort-icon {
+  /*finish triangle*/
+  border-top: 8px solid #999;
+}
+</style></head>
+  <body onLoad="init()">
+    <script>/* This Source Code Form is subject to the terms of the Mozilla Public
+ * License, v. 2.0. If a copy of the MPL was not distributed with this file,
+ * You can obtain one at http://mozilla.org/MPL/2.0/. */
+
+
+function toArray(iter) {
+    if (iter === null) {
+        return null;
+    }
+    return Array.prototype.slice.call(iter);
+}
+
+function find(selector, elem) { // eslint-disable-line no-redeclare
+    if (!elem) {
+        elem = document;
+    }
+    return elem.querySelector(selector);
+}
+
+function findAll(selector, elem) {
+    if (!elem) {
+        elem = document;
+    }
+    return toArray(elem.querySelectorAll(selector));
+}
+
+function sortColumn(elem) {
+    toggleSortStates(elem);
+    const colIndex = toArray(elem.parentNode.childNodes).indexOf(elem);
+    let key;
+    if (elem.classList.contains('result')) {
+        key = keyResult;
+    } else if (elem.classList.contains('links')) {
+        key = keyLink;
+    } else {
+        key = keyAlpha;
+    }
+    sortTable(elem, key(colIndex));
+}
+
+function showAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(showExtras);
+}
+
+function hideAllExtras() { // eslint-disable-line no-unused-vars
+    findAll('.col-result').forEach(hideExtras);
+}
+
+function showExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.remove('collapsed');
+    expandcollapse.classList.remove('expander');
+    expandcollapse.classList.add('collapser');
+}
+
+function hideExtras(colresultElem) {
+    const extras = colresultElem.parentNode.nextElementSibling;
+    const expandcollapse = colresultElem.firstElementChild;
+    extras.classList.add('collapsed');
+    expandcollapse.classList.remove('collapser');
+    expandcollapse.classList.add('expander');
+}
+
+function showFilters() {
+    const filterItems = document.getElementsByClassName('filter');
+    for (let i = 0; i < filterItems.length; i++)
+        filterItems[i].hidden = false;
+}
+
+function addCollapse() {
+    // Add links for show/hide all
+    const resulttable = find('table#results-table');
+    const showhideall = document.createElement('p');
+    showhideall.innerHTML = '<a href="javascript:showAllExtras()">Show all details</a> / ' +
+                            '<a href="javascript:hideAllExtras()">Hide all details</a>';
+    resulttable.parentElement.insertBefore(showhideall, resulttable);
+
+    // Add show/hide link to each result
+    findAll('.col-result').forEach(function(elem) {
+        const collapsed = getQueryParameter('collapsed') || 'Passed';
+        const extras = elem.parentNode.nextElementSibling;
+        const expandcollapse = document.createElement('span');
+        if (extras.classList.contains('collapsed')) {
+            expandcollapse.classList.add('expander');
+        } else if (collapsed.includes(elem.innerHTML)) {
+            extras.classList.add('collapsed');
+            expandcollapse.classList.add('expander');
+        } else {
+            expandcollapse.classList.add('collapser');
+        }
+        elem.appendChild(expandcollapse);
+
+        elem.addEventListener('click', function(event) {
+            if (event.currentTarget.parentNode.nextElementSibling.classList.contains('collapsed')) {
+                showExtras(event.currentTarget);
+            } else {
+                hideExtras(event.currentTarget);
+            }
+        });
+    });
+}
+
+function getQueryParameter(name) {
+    const match = RegExp('[?&]' + name + '=([^&]*)').exec(window.location.search);
+    return match && decodeURIComponent(match[1].replace(/\+/g, ' '));
+}
+
+function init () { // eslint-disable-line no-unused-vars
+    resetSortHeaders();
+
+    addCollapse();
+
+    showFilters();
+
+    sortColumn(find('.initial-sort'));
+
+    findAll('.sortable').forEach(function(elem) {
+        elem.addEventListener('click',
+            function() {
+                sortColumn(elem);
+            }, false);
+    });
+    hide_all_extras();
+}
+
+function sortTable(clicked, keyFunc) {
+    const rows = findAll('.results-table-row');
+    const reversed = !clicked.classList.contains('asc');
+    const sortedRows = sort(rows, keyFunc, reversed);
+    /* Whole table is removed here because browsers acts much slower
+     * when appending existing elements.
+     */
+    const thead = document.getElementById('results-table-head');
+    document.getElementById('results-table').remove();
+    const parent = document.createElement('table');
+    parent.id = 'results-table';
+    parent.appendChild(thead);
+    sortedRows.forEach(function(elem) {
+        parent.appendChild(elem);
+    });
+    document.getElementsByTagName('BODY')[0].appendChild(parent);
+}
+
+function sort(items, keyFunc, reversed) {
+    const sortArray = items.map(function(item, i) {
+        return [keyFunc(item), i];
+    });
+
+    sortArray.sort(function(a, b) {
+        const keyA = a[0];
+        const keyB = b[0];
+
+        if (keyA == keyB) return 0;
+
+        if (reversed) {
+            return keyA < keyB ? 1 : -1;
+        } else {
+            return keyA > keyB ? 1 : -1;
+        }
+    });
+
+    return sortArray.map(function(item) {
+        const index = item[1];
+        return items[index];
+    });
+}
+
+function keyAlpha(colIndex) {
+    return function(elem) {
+        return elem.childNodes[1].childNodes[colIndex].firstChild.data.toLowerCase();
+    };
+}
+
+function keyLink(colIndex) {
+    return function(elem) {
+        const dataCell = elem.childNodes[1].childNodes[colIndex].firstChild;
+        return dataCell == null ? '' : dataCell.innerText.toLowerCase();
+    };
+}
+
+function keyResult(colIndex) {
+    return function(elem) {
+        const strings = ['Error', 'Failed', 'Rerun', 'XFailed', 'XPassed',
+            'Skipped', 'Passed'];
+        return strings.indexOf(elem.childNodes[1].childNodes[colIndex].firstChild.data);
+    };
+}
+
+function resetSortHeaders() {
+    findAll('.sort-icon').forEach(function(elem) {
+        elem.parentNode.removeChild(elem);
+    });
+    findAll('.sortable').forEach(function(elem) {
+        const icon = document.createElement('div');
+        icon.className = 'sort-icon';
+        icon.textContent = 'vvv';
+        elem.insertBefore(icon, elem.firstChild);
+        elem.classList.remove('desc', 'active');
+        elem.classList.add('asc', 'inactive');
+    });
+}
+
+function toggleSortStates(elem) {
+    //if active, toggle between asc and desc
+    if (elem.classList.contains('active')) {
+        elem.classList.toggle('asc');
+        elem.classList.toggle('desc');
+    }
+
+    //if inactive, reset all other functions and add ascending active
+    if (elem.classList.contains('inactive')) {
+        resetSortHeaders();
+        elem.classList.remove('inactive');
+        elem.classList.add('active');
+    }
+}
+
+function isAllRowsHidden(value) {
+    return value.hidden == false;
+}
+
+function filterTable(elem) { // eslint-disable-line no-unused-vars
+    const outcomeAtt = 'data-test-result';
+    const outcome = elem.getAttribute(outcomeAtt);
+    const classOutcome = outcome + ' results-table-row';
+    const outcomeRows = document.getElementsByClassName(classOutcome);
+
+    for(let i = 0; i < outcomeRows.length; i++){
+        outcomeRows[i].hidden = !elem.checked;
+    }
+
+    const rows = findAll('.results-table-row').filter(isAllRowsHidden);
+    const allRowsHidden = rows.length == 0 ? true : false;
+    const notFoundMessage = document.getElementById('not-found-message');
+    notFoundMessage.hidden = !allRowsHidden;
+}
+</script>
+    <h1>shoot_case.html</h1>
+    <p>Report generated on 06-Sep-2022 at 13:21:54 by <a href="https://pypi.python.org/pypi/pytest-html">pytest-html</a> v3.1.1</p>
+    <h2>Environment</h2>
+    <table id="environment">
+      <tr>
+        <td>Platform</td>
+        <td>Darwin-21.2.0-x86_64-i386-64bit</td></tr>
+      <tr>
+        <td>Python</td>
+        <td>3.7.5</td></tr></table>
+    <h2>Summary</h2>
+    <p>测试人员：游弘扬</p>
+    <p>50 tests ran in 1036.30 seconds. </p>
+    <p class="filter" hidden="true">(Un)check the boxes to filter the results.</p><input checked="true" class="filter" data-test-result="passed" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="passed">50 passed</span>, <input checked="true" class="filter" data-test-result="skipped" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="skipped">0 skipped</span>, <input checked="true" class="filter" data-test-result="failed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="failed">0 failed</span>, <input checked="true" class="filter" data-test-result="error" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="error">0 errors</span>, <input checked="true" class="filter" data-test-result="xfailed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xfailed">0 expected failures</span>, <input checked="true" class="filter" data-test-result="xpassed" disabled="true" hidden="true" name="filter_checkbox" onChange="filterTable(this)" type="checkbox"/><span class="xpassed">0 unexpected passes</span>
+    <h2>Results</h2>
+    <table id="results-table">
+      <thead id="results-table-head">
+        <tr>
+          <th class="sortable result initial-sort" col="result">Result</th>
+          <th>Description</th>
+          <th class="sortable" col="name">Test</th>
+          <th class="sortable" col="duration">Duration</th></tr>
+        <tr hidden="true" id="not-found-message">
+          <th colspan="4">No results found. Try to check the filters</th></tr></thead>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>登录</td>
+          <td class="col-name">scripts/setup/test_login.py::TestCase::test_login</td>
+          <td class="col-duration">31.43</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:04:42 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/login
+2022-09-06 13:04:54 - INFO: 点击--密码登录
+2022-09-06 13:04:57 - INFO: 输入账号
+2022-09-06 13:04:58 - INFO: 输入密码
+2022-09-06 13:05:01 - INFO: 点击--登录
+2022-09-06 13:05:09 - INFO: 登录成功！<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>首页-进入拍摄首页</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_enter_view.py::TestCase::test_enter</td>
+          <td class="col-duration">3.20</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:05:10 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/shoot<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-创建项目</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_create.py::TestCase::test_create</td>
+          <td class="col-duration">10.52</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:05:13 - INFO: 我的拍摄项目列表为：[&#x27;大文件测试&#x27;, &#x27;12&#x27;, &#x27;测试&#x27;, &#x27;多文件测试&#x27;]
+2022-09-06 13:05:13 - INFO: 点击--左上角加号图标
+2022-09-06 13:05:16 - INFO: 输入项目名称
+2022-09-06 13:05:17 - INFO: 输入字符数为：6/20
+2022-09-06 13:05:17 - INFO: 实际字符数为：6/20
+2022-09-06 13:05:17 - INFO: 字符数检测成功
+2022-09-06 13:05:17 - INFO: 点击--创建 
+2022-09-06 13:05:20 - INFO: 检测到提示--创建项目成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-创建重名项目</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_create.py::TestCase::test_create_exist</td>
+          <td class="col-duration">12.58</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:05:23 - INFO: 我的拍摄项目列表为：[&#x27;测试-自动化&#x27;, &#x27;大文件测试&#x27;, &#x27;12&#x27;, &#x27;测试&#x27;, &#x27;多文件测试&#x27;]
+2022-09-06 13:05:23 - INFO: 点击--左上角加号图标
+2022-09-06 13:05:26 - INFO: 输入项目名称
+2022-09-06 13:05:27 - INFO: 点击--创建 
+2022-09-06 13:05:31 - INFO: 检测到提示--项目名称重复
+2022-09-06 13:05:31 - INFO: 点击--取消<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-链接邀请测试</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_invite_by_link.py::TestCase::test_invite_link</td>
+          <td class="col-duration">77.91</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:05:36 - INFO: 检测到测试项目
+2022-09-06 13:05:41 - INFO: 点击--添加成员
+2022-09-06 13:05:46 - INFO: 当前邀请角色为：管理者
+2022-09-06 13:05:46 - INFO: 切换邀请角色
+2022-09-06 13:05:48 - INFO: 点击--管理者
+2022-09-06 13:05:54 - INFO: 邀请角色切换成功
+2022-09-06 13:05:54 - INFO: 点击--复制链接
+2022-09-06 13:05:58 - INFO: 复制链接成功
+2022-09-06 13:05:58 - INFO: https://uat.yueliu.link/3ga0C9
+2022-09-06 13:05:58 - INFO: 点击--关闭邀请界面
+2022-09-06 13:06:00 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/login
+2022-09-06 13:06:06 - INFO: 点击--密码登录
+2022-09-06 13:06:08 - INFO: 输入账号
+2022-09-06 13:06:09 - INFO: 输入密码
+2022-09-06 13:06:10 - INFO: 点击--登录
+2022-09-06 13:06:17 - INFO: 登录成功！
+2022-09-06 13:06:17 - INFO: 访问url：https://uat.yueliu.link/3ga0C9
+2022-09-06 13:06:54 - INFO: 参与拍摄项目列表为：[&#x27;测试-自动化&#x27;, &#x27;12&#x27;, &#x27;多文件测试&#x27;]
+2022-09-06 13:06:54 - INFO: 参与项目检测到测试项目，加入成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-修改成员角色</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_change_role.py::TestCase::test_change_role</td>
+          <td class="col-duration">16.58</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:06:54 - INFO: 检测到测试项目
+2022-09-06 13:06:59 - INFO: 点击--成员管理
+2022-09-06 13:07:01 - INFO: 点击--设置
+2022-09-06 13:07:03 - INFO: 点击--审阅者
+2022-09-06 13:07:05 - INFO: 修改成员-游弘扬 角色成功：管理者-&gt;审阅者
+2022-09-06 13:07:08 - INFO: 点击--关闭成员管理界面<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-删除机位</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_create_camera.py::TestCase::test_remove_carema</td>
+          <td class="col-duration">3.07</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:07:10 - INFO: 检测到测试项目
+2022-09-06 13:07:13 - INFO: 无同名机位<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-创建机位</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_create_camera.py::TestCase::test_create_carema</td>
+          <td class="col-duration">14.30</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:07:13 - INFO: 检测到测试项目
+2022-09-06 13:07:18 - INFO: 点击--创建机位
+2022-09-06 13:07:22 - INFO: 输入字符数为：8/20
+2022-09-06 13:07:22 - INFO: 实际字符数为：8/20
+2022-09-06 13:07:22 - INFO: 字符数检测成功
+2022-09-06 13:07:22 - INFO: 点击--完成创建
+2022-09-06 13:07:25 - INFO: 创建成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位配置-上传文件测试</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_upload.py::TestCase::test_upload_img</td>
+          <td class="col-duration">53.60</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:07:32 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:07:32 - INFO: 点击--机位配置
+2022-09-06 13:07:39 - INFO: 点击--拍摄素材回放
+2022-09-06 13:07:42 - INFO: 点击--上传文件
+2022-09-06 13:07:45 - INFO: 上传文件为：/Users/yhy/Desktop/AutoTest/statics/upload_file/
+2022-09-06 13:07:45 - INFO: 操作系统为：darwin
+2022-09-06 13:07:45 - INFO: 打开搜索框
+2022-09-06 13:07:45 - INFO: 模拟键盘操作：(&#x27;shift&#x27;, &#x27;command&#x27;, &#x27;g&#x27;)
+2022-09-06 13:07:49 - INFO: 粘贴文件路径
+2022-09-06 13:07:49 - INFO: 模拟键盘操作：(&#x27;command&#x27;, &#x27;v&#x27;)
+2022-09-06 13:07:53 - INFO: 全选
+2022-09-06 13:07:53 - INFO: 模拟键盘操作：(&#x27;command&#x27;, &#x27;a&#x27;)
+2022-09-06 13:07:59 - INFO: 上传进度弹窗为显示状态
+2022-09-06 13:07:59 - INFO: 上传进度弹窗为显示状态
+2022-09-06 13:07:59 - INFO: 正在上传 0 / 4
+2022-09-06 13:08:04 - INFO: 正在上传 3 / 4
+2022-09-06 13:08:09 - INFO: 文件上传完成！
+2022-09-06 13:08:14 - INFO: 点击--更多设置
+2022-09-06 13:08:16 - INFO: 点击--清空已完成记录
+2022-09-06 13:08:18 - INFO: 没有正在上传的文件
+2022-09-06 13:08:18 - INFO: 上传进度弹窗为显示状态，点击关闭
+2022-09-06 13:08:21 - INFO: 清除成功
+2022-09-06 13:08:21 - INFO: 上传进度弹窗为隐藏状态<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位配置-上传文件夹测试</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_upload.py::TestCase::test_upload_dir</td>
+          <td class="col-duration">51.86</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:08:21 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:08:21 - INFO: 点击--机位配置
+2022-09-06 13:08:27 - INFO: 点击--拍摄素材回放
+2022-09-06 13:08:30 - INFO: 点击--上传文件夹
+2022-09-06 13:08:33 - INFO: 上传文件为：/Users/yhy/Desktop/AutoTest/statics/upload_file/
+2022-09-06 13:08:33 - INFO: 操作系统为：darwin
+2022-09-06 13:08:33 - INFO: 打开搜索框
+2022-09-06 13:08:33 - INFO: 模拟键盘操作：(&#x27;shift&#x27;, &#x27;command&#x27;, &#x27;g&#x27;)
+2022-09-06 13:08:37 - INFO: 粘贴文件路径
+2022-09-06 13:08:37 - INFO: 模拟键盘操作：(&#x27;command&#x27;, &#x27;v&#x27;)
+2022-09-06 13:08:47 - INFO: 图像识别查找--上传
+2022-09-06 13:08:48 - INFO: 识别文件截图为：/Users/yhy/Desktop/AutoTest/report/22_09_06_13_04_25/screen/find_22_09_06_13_08_48.png
+2022-09-06 13:08:49 - INFO: 检测到图像，中心坐标为--(897, 217)
+2022-09-06 13:08:49 - INFO: 移动到坐标--897, 217
+2022-09-06 13:08:49 - INFO: 点击坐标
+2022-09-06 13:08:51 - INFO: 上传进度弹窗为显示状态
+2022-09-06 13:08:51 - INFO: 上传进度弹窗为显示状态
+2022-09-06 13:08:51 - INFO: 正在上传 0 / 4
+2022-09-06 13:08:56 - INFO: 正在上传 3 / 4
+2022-09-06 13:09:01 - INFO: 文件上传完成！
+2022-09-06 13:09:06 - INFO: 点击--更多设置
+2022-09-06 13:09:08 - INFO: 点击--清空已完成记录
+2022-09-06 13:09:10 - INFO: 没有正在上传的文件
+2022-09-06 13:09:10 - INFO: 上传进度弹窗为显示状态，点击关闭
+2022-09-06 13:09:13 - INFO: 清除成功
+2022-09-06 13:09:13 - INFO: 上传进度弹窗为隐藏状态<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-防录屏权限开启测试</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_permission.py::TestCase::test_fangluping_open</td>
+          <td class="col-duration">20.68</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:09:13 - INFO: 检测到测试项目
+2022-09-06 13:09:18 - INFO: 点击--拍摄设置
+2022-09-06 13:09:20 - INFO: 防录屏开关未打开，点击打开
+2022-09-06 13:09:22 - INFO: 点击--保存设置
+2022-09-06 13:09:26 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:09:26 - INFO: 点击--监看/回放
+2022-09-06 13:09:31 - INFO: 检测到防录屏标志<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:09:31 - INFO: 点击--返回
+2022-09-06 13:09:34 - INFO: 当前在拍摄首页
+2022-09-06 13:09:34 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-防录屏权限关闭测试</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_permission.py::TestCase::test_fangluping_close</td>
+          <td class="col-duration">20.66</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:09:34 - INFO: 检测到测试项目
+2022-09-06 13:09:39 - INFO: 点击--拍摄设置
+2022-09-06 13:09:41 - INFO: 防录屏开关为打开状态，点击关闭
+2022-09-06 13:09:43 - INFO: 点击--保存设置
+2022-09-06 13:09:46 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:09:46 - INFO: 点击--监看/回放
+2022-09-06 13:09:51 - INFO: 未检测到防录屏标志<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:09:51 - INFO: 点击--返回
+2022-09-06 13:09:55 - INFO: 当前在拍摄首页
+2022-09-06 13:09:55 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-关闭成员查看文件权限</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_permission.py::TestCase::test_read_file_close</td>
+          <td class="col-duration">44.34</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:09:55 - INFO: 检测到测试项目
+2022-09-06 13:10:00 - INFO: 点击--拍摄设置
+2022-09-06 13:10:02 - INFO: 当前角色：制作者 拥有查看文件权限
+2022-09-06 13:10:02 - INFO: 关闭查看文件权限
+2022-09-06 13:10:03 - INFO: 点击--保存设置
+2022-09-06 13:10:04 - INFO: 检测到测试项目
+2022-09-06 13:10:09 - INFO: 点击--成员管理
+2022-09-06 13:10:11 - INFO: 点击--设置
+2022-09-06 13:10:13 - INFO: 点击--制作者
+2022-09-06 13:10:15 - INFO: 修改成员-游弘扬 角色成功：审阅者-&gt;制作者
+2022-09-06 13:10:18 - INFO: 点击--关闭成员管理界面
+2022-09-06 13:10:27 - INFO: 检测到加入项目
+2022-09-06 13:10:30 - INFO: 当前项目存储空间为：存储空间：* KB
+2022-09-06 13:10:30 - INFO: 检测到无法查看项目存储空间
+2022-09-06 13:10:30 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:10:30 - INFO: 点击--监看/回放
+2022-09-06 13:10:36 - INFO: 检测到无法查看机位文件<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:10:36 - INFO: 当前在拍摄首页
+2022-09-06 13:10:36 - INFO: 点击--返回
+2022-09-06 13:10:39 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位列表页-广告位</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_advertisement.py::TestCase::test_advertisement</td>
+          <td class="col-duration">35.24</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:10:39 - INFO: 检测到测试项目
+2022-09-06 13:10:42 - INFO: 检测到广告位
+2022-09-06 13:10:42 - INFO: 点击--关闭广告位
+2022-09-06 13:10:44 - INFO: 未检测到广告位
+2022-09-06 13:10:44 - INFO: 点击--用户头像
+2022-09-06 13:10:46 - INFO: 点击--退出登录
+2022-09-06 13:10:48 - INFO: 点击--退出
+2022-09-06 13:10:51 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/login
+2022-09-06 13:10:57 - INFO: 点击--密码登录
+2022-09-06 13:10:59 - INFO: 输入账号
+2022-09-06 13:11:00 - INFO: 输入密码
+2022-09-06 13:11:01 - INFO: 点击--登录
+2022-09-06 13:11:08 - INFO: 登录成功！
+2022-09-06 13:11:08 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/shoot
+2022-09-06 13:11:11 - INFO: 检测到测试项目
+2022-09-06 13:11:14 - INFO: 检测到广告位<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>分享-分享者有查看文件权限</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_share.py::TestCase::test_share_can_read</td>
+          <td class="col-duration">24.87</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:11:14 - INFO: 点击--创建分享
+2022-09-06 13:11:16 - INFO: 选择机位-测试机位-自动化
+2022-09-06 13:11:18 - INFO: 点击--分享
+2022-09-06 13:11:21 - INFO: 检测到分享弹窗
+2022-09-06 13:11:21 - INFO: 点击--创建
+2022-09-06 13:11:26 - INFO: 点击--复制链接
+2022-09-06 13:11:30 - INFO: 复制链接成功
+2022-09-06 13:11:30 - INFO: 点击--关闭分享弹窗
+2022-09-06 13:11:32 - INFO: 访问url：https://uat.yueliu.link/ow1xS
+2022-09-06 13:11:36 - INFO: 检测到文件列表
+2022-09-06 13:11:36 - INFO: 分享功能正常
+2022-09-06 13:11:36 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/shoot<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>分享-分享者无查看文件权限</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_share.py::TestCase::test_share_can_not_read</td>
+          <td class="col-duration">38.14</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:11:39 - INFO: 检测到加入项目
+2022-09-06 13:11:46 - INFO: 点击--创建分享
+2022-09-06 13:11:48 - INFO: 选择机位-测试机位-自动化
+2022-09-06 13:11:51 - INFO: 点击--分享
+2022-09-06 13:11:54 - INFO: 检测到分享弹窗
+2022-09-06 13:11:54 - INFO: 点击--创建
+2022-09-06 13:11:59 - INFO: 点击--复制链接
+2022-09-06 13:12:02 - INFO: 复制链接成功
+2022-09-06 13:12:02 - INFO: 点击--关闭分享弹窗
+2022-09-06 13:12:10 - INFO: 访问url：https://uat.yueliu.link/4fX4AO
+2022-09-06 13:12:14 - INFO: 未检测到文件列表
+2022-09-06 13:12:14 - INFO: 分享功能正常
+2022-09-06 13:12:14 - INFO: 访问url：https://uat5.yueliu.cloud/v20/#/shoot<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位配置-rtmp推流</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_push.py::TestCase::test_rtmp_push</td>
+          <td class="col-duration">14.77</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:12:17 - INFO: 检测到测试项目
+2022-09-06 13:12:20 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:12:20 - INFO: 点击--机位配置
+2022-09-06 13:12:25 - INFO: 点击--实时画面推流
+2022-09-06 13:12:28 - INFO: 点击--RTMP推流
+2022-09-06 13:12:32 - INFO: 复制结果为：rtmp://uat1-pushrtmp.yueliu.cloud/S220906000565119/
+2022-09-06 13:12:32 - INFO: 复制地址成功
+2022-09-06 13:12:32 - INFO: 复制结果为：S16624408421728?txSecret=d79d0b39e06a936a5d6f6d8decf3d4ef&amp;txTime=68BBC2B0&amp;liveUid=2656336
+2022-09-06 13:12:32 - INFO: 复制密钥成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位配置-srt推流</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_push.py::TestCase::test_srt_push</td>
+          <td class="col-duration">8.54</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:12:32 - INFO: 点击--实时画面推流
+2022-09-06 13:12:35 - INFO: 点击--SRT推流
+2022-09-06 13:12:38 - INFO: 复制结果为：srt://uat1-pushrtmp.yueliu.cloud:9000?streamid=#!::h=uat1-pushrtmp.yueliu.cloud,r=S220906000565119/S16624408421728,txSecret=d79d0b39e06a936a5d6f6d8decf3d4ef,txTime=68BBC2B0
+2022-09-06 13:12:38 - INFO: 复制地址成功
+2022-09-06 13:12:38 - INFO: 点击--关闭机位设置<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位配置-生成FTP链接</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_create_ftp_link.py::TestCase::test_create_ftp_link</td>
+          <td class="col-duration">18.41</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:12:40 - INFO: 检测到测试项目
+2022-09-06 13:12:44 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:12:44 - INFO: 点击--机位配置
+2022-09-06 13:12:49 - INFO: 点击--拍摄素材回放
+2022-09-06 13:12:52 - INFO: 点击--生成 FTP 链接
+2022-09-06 13:12:55 - INFO: f.yueliu.cn:9921(用户名：S2656336P3206N0密码：5119)
+2022-09-06 13:12:55 - INFO: 点击--复制FTP链接地址
+2022-09-06 13:12:57 - INFO: 复制FTP地址成功
+2022-09-06 13:12:57 - INFO: 点击--关闭机位设置<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-点击头像打开成员管理页面</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_open_member_view_by_icon</td>
+          <td class="col-duration">4.14</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:12:59 - INFO: 点击--成员头像
+2022-09-06 13:13:01 - INFO: 检测到对话框，打开成员管理成功
+2022-09-06 13:13:01 - INFO: 点击--关闭成员管理界面<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-创建会议</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_create_meeting</td>
+          <td class="col-duration">12.17</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:13:03 - INFO: 点击--创建会议
+2022-09-06 13:13:05 - INFO: 图像识别查找--录音权限弹窗
+2022-09-06 13:13:06 - INFO: 识别文件截图为：/Users/yhy/Desktop/AutoTest/report/22_09_06_13_04_25/screen/find_22_09_06_13_13_06.png
+2022-09-06 13:13:07 - INFO: 检测到图像，中心坐标为--(380, 197)
+2022-09-06 13:13:07 - INFO: 移动到坐标--380, 197
+2022-09-06 13:13:07 - INFO: 点击录音权限弹窗
+2022-09-06 13:13:10 - INFO: 会议准备中。。。
+2022-09-06 13:13:15 - INFO: 会议创建成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-麦克风静音</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_meeting_voice</td>
+          <td class="col-duration">16.44</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:13:15 - INFO: 点击--对话框-静音
+2022-09-06 13:13:20 - INFO: el-tooltip iconfont iconmic-off cursor
+2022-09-06 13:13:20 - INFO: 检测到当前为静音状态
+2022-09-06 13:13:20 - INFO: 点击--对话框-静音
+2022-09-06 13:13:25 - INFO: el-tooltip iconfont iconmic cursor
+2022-09-06 13:13:25 - INFO: 检测到当前为非静音状态
+2022-09-06 13:13:25 - INFO: 会议对话框为开启状态
+2022-09-06 13:13:25 - INFO: 点击--会议区域icon
+2022-09-06 13:13:27 - INFO: 会议对话框为关闭状态
+2022-09-06 13:13:27 - INFO: 检测到当前为非静音状态
+2022-09-06 13:13:27 - INFO: 点击--标题-静音
+2022-09-06 13:13:30 - INFO: 检测到当前为静音状态
+2022-09-06 13:13:30 - INFO: 检测到当前为静音状态
+2022-09-06 13:13:30 - INFO: 点击--标题-静音
+2022-09-06 13:13:32 - INFO: 检测到当前为非静音状态<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-邀请加入会议</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_meeting_invite</td>
+          <td class="col-duration">48.48</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:13:32 - INFO: 点击--会议区域icon
+2022-09-06 13:13:34 - INFO: 点击--邀请入会
+2022-09-06 13:13:39 - INFO: 点击--复制链接
+2022-09-06 13:13:42 - INFO: 复制链接成功
+2022-09-06 13:13:42 - INFO: 点击--关闭邀请界面
+2022-09-06 13:13:48 - INFO: 访问url：https://uat.yueliu.link/4mG3UC
+2022-09-06 13:14:00 - INFO: 点击--加入会议
+2022-09-06 13:14:06 - INFO: 图像识别查找--允许录音权限
+2022-09-06 13:14:07 - INFO: 识别文件截图为：/Users/yhy/Desktop/AutoTest/report/22_09_06_13_04_25/screen/find_22_09_06_13_14_07.png
+2022-09-06 13:14:08 - INFO: 检测到图像，中心坐标为--(673, 232)
+2022-09-06 13:14:08 - INFO: 移动到坐标--673, 232
+2022-09-06 13:14:08 - INFO: 点击允许录音权限
+2022-09-06 13:14:20 - INFO: 加入会议成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-移除会议成员</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_remove_member</td>
+          <td class="col-duration">5.08</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:14:20 - INFO: 点击--移除用户--游弘扬
+2022-09-06 13:14:22 - INFO: 会议成员移除成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-点击按钮加入会议</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_join_meeting</td>
+          <td class="col-duration">20.49</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:14:33 - INFO: 点击--加入
+2022-09-06 13:14:46 - INFO: 加入会议成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-会议主持人移交</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_meeting_host_translate</td>
+          <td class="col-duration">13.57</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:14:46 - INFO: 会议对话框为开启状态
+2022-09-06 13:14:46 - INFO: 点击--离开
+2022-09-06 13:14:48 - INFO: 点击--离开会议
+2022-09-06 13:14:56 - INFO: 检测到主持人自动分配弹窗
+2022-09-06 13:14:56 - INFO: 点击--知道了
+2022-09-06 13:14:59 - INFO: 主持人移交成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>会议-全员结束会议</td>
+          <td class="col-name">scripts/case/shoot/camera/test_camera_meeting.py::TestCase::test_meeting_close</td>
+          <td class="col-duration">17.05</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:14:59 - INFO: 会议对话框为开启状态
+2022-09-06 13:14:59 - INFO: 点击--离开
+2022-09-06 13:15:02 - INFO: 点击--全员结束会议
+2022-09-06 13:15:05 - INFO: 点击--结束<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-播放状态测试</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_player_status</td>
+          <td class="col-duration">16.67</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>2022-09-06 13:15:16 - INFO: 检测到测试项目
+2022-09-06 13:15:19 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:15:19 - INFO: 点击--监看/回放
+2022-09-06 13:15:25 - INFO: 检测到视频类文件--video.mp4<br/> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:15:27 - INFO: 点击--播放
+2022-09-06 13:15:27 - INFO: 当前播放器时间为：00:00
+2022-09-06 13:15:27 - INFO: 等待3秒后再次检测
+2022-09-06 13:15:30 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:30 - INFO: 播放成功
+2022-09-06 13:15:30 - INFO: 当前播放器为播放状态
+2022-09-06 13:15:30 - INFO: 点击--暂停
+2022-09-06 13:15:30 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:30 - INFO: 等待3秒后再次检测
+2022-09-06 13:15:33 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:33 - INFO: 暂停播放成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-快进/快退</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_player_time_control</td>
+          <td class="col-duration">4.15</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:15:33 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:33 - INFO: 点击--前进
+2022-09-06 13:15:35 - INFO: 当前播放器时间为：00:04
+2022-09-06 13:15:35 - INFO: 快进3秒成功
+2022-09-06 13:15:35 - INFO: 当前播放器时间为：00:04
+2022-09-06 13:15:35 - INFO: 点击--后退
+2022-09-06 13:15:37 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:37 - INFO: 快退3秒成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-时间码格式切换</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_player_time_code_change</td>
+          <td class="col-duration">8.26</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:15:39 - INFO: 点击--时间码
+2022-09-06 13:15:41 - INFO: 当前播放器时间为：00:00:01:17
+2022-09-06 13:15:41 - INFO: 时间码格式切换为--时间码 成功
+2022-09-06 13:15:43 - INFO: 点击--帧
+2022-09-06 13:15:45 - INFO: 当前播放器时间为：40
+2022-09-06 13:15:45 - INFO: 时间码格式切换为--帧 成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-上一帧/下一帧</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_player_fps_change</td>
+          <td class="col-duration">8.20</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:15:45 - INFO: 当前播放器时间为：40
+2022-09-06 13:15:45 - INFO: 点击--下一帧
+2022-09-06 13:15:47 - INFO: 当前播放器时间为：41
+2022-09-06 13:15:47 - INFO: 切换下一帧成功
+2022-09-06 13:15:48 - INFO: 当前播放器时间为：41
+2022-09-06 13:15:48 - INFO: 点击--上一帧
+2022-09-06 13:15:50 - INFO: 当前播放器时间为：40
+2022-09-06 13:15:50 - INFO: 切换上一帧成功
+2022-09-06 13:15:52 - INFO: 点击--标准
+2022-09-06 13:15:54 - INFO: 当前播放器时间为：00:01
+2022-09-06 13:15:54 - INFO: 时间码格式切换为--标准 成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-静音/取消静音</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_player_sound_control</td>
+          <td class="col-duration">6.11</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:15:54 - INFO: 点击--音量控制
+2022-09-06 13:15:57 - INFO: 检测到音量图标为静音图片
+2022-09-06 13:15:57 - INFO: 点击--音量控制
+2022-09-06 13:16:00 - INFO: 检测到音量图标为非静音图片<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-画质切换</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_quality_change</td>
+          <td class="col-duration">7.58</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:16:00 - INFO: 点击--画质切换
+2022-09-06 13:16:02 - INFO: 下一个画质为：标清 540P
+2022-09-06 13:16:02 - INFO: 点击--标清 540P
+2022-09-06 13:16:07 - INFO: 画质切换成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-倍数切换</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_video_speed_change</td>
+          <td class="col-duration">17.67</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:16:14 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:16:16 - INFO: 点击--倍数切换
+2022-09-06 13:16:18 - INFO: 点击--2.0倍数
+2022-09-06 13:16:20 - INFO: 当前倍数为2.0
+2022-09-06 13:16:20 - INFO: 点击--播放
+2022-09-06 13:16:20 - INFO: 等待五秒检测播放器时间
+2022-09-06 13:16:25 - INFO: 当前播放器时间为：00:09
+2022-09-06 13:16:25 - INFO: 倍数切换成功
+2022-09-06 13:16:25 - INFO: 当前播放器为播放状态
+2022-09-06 13:16:25 - INFO: 点击--暂停<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-全屏显示</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_img_max_screen</td>
+          <td class="col-duration">4.60</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:16:25 - INFO: 点击--全屏
+2022-09-06 13:16:27 - INFO: 全屏成功
+2022-09-06 13:16:27 - INFO: 点击--取消全屏
+2022-09-06 13:16:30 - INFO: 取消全屏成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>播放器-多屏验证</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_player.py::TestCase::test_many_screen</td>
+          <td class="col-duration">84.24</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:16:30 - INFO: 点击--双屏
+2022-09-06 13:16:36 - INFO: 播放器数量为：2
+2022-09-06 13:16:36 - INFO: 播放器数量检测成功
+2022-09-06 13:16:36 - INFO: 点击--打开视频列表
+2022-09-06 13:16:38 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:16:40 - INFO: 点击--关闭视频列表
+2022-09-06 13:16:42 - INFO: 点击--播放
+2022-09-06 13:16:45 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:16:45 - INFO: 播放成功
+2022-09-06 13:16:45 - INFO: 点击--暂停
+2022-09-06 13:16:47 - INFO: 点击--打开视频列表
+2022-09-06 13:16:49 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:16:51 - INFO: 点击--关闭视频列表
+2022-09-06 13:16:53 - INFO: 点击--播放
+2022-09-06 13:16:57 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:16:57 - INFO: 播放成功
+2022-09-06 13:16:57 - INFO: 点击--暂停
+2022-09-06 13:16:59 - INFO: 点击--四屏
+2022-09-06 13:17:05 - INFO: 播放器数量为：4
+2022-09-06 13:17:05 - INFO: 播放器数量检测成功
+2022-09-06 13:17:05 - INFO: 点击--打开视频列表
+2022-09-06 13:17:07 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:17:09 - INFO: 点击--关闭视频列表
+2022-09-06 13:17:12 - INFO: 点击--播放
+2022-09-06 13:17:15 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:17:15 - INFO: 播放成功
+2022-09-06 13:17:15 - INFO: 点击--暂停
+2022-09-06 13:17:17 - INFO: 点击--打开视频列表
+2022-09-06 13:17:19 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:17:21 - INFO: 点击--关闭视频列表
+2022-09-06 13:17:23 - INFO: 点击--播放
+2022-09-06 13:17:26 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:17:26 - INFO: 播放成功
+2022-09-06 13:17:26 - INFO: 点击--暂停
+2022-09-06 13:17:28 - INFO: 点击--打开视频列表
+2022-09-06 13:17:30 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:17:32 - INFO: 点击--关闭视频列表
+2022-09-06 13:17:34 - INFO: 点击--播放
+2022-09-06 13:17:37 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:17:37 - INFO: 播放成功
+2022-09-06 13:17:37 - INFO: 点击--暂停
+2022-09-06 13:17:39 - INFO: 点击--打开视频列表
+2022-09-06 13:17:41 - INFO: 检测到视频类文件--video.mp4
+2022-09-06 13:17:44 - INFO: 点击--关闭视频列表
+2022-09-06 13:17:46 - INFO: 点击--播放
+2022-09-06 13:17:49 - INFO: 当前播放器时间为：00:02
+2022-09-06 13:17:49 - INFO: 播放成功
+2022-09-06 13:17:49 - INFO: 点击--暂停<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:17:51 - INFO: 点击--返回
+2022-09-06 13:17:54 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-打开左侧侧边栏</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_open_left_view</td>
+          <td class="col-duration">21.72</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>2022-09-06 13:17:54 - INFO: 检测到测试项目
+2022-09-06 13:17:59 - INFO: 点击--创建机位
+2022-09-06 13:18:02 - INFO: 输入字符数为：11/20
+2022-09-06 13:18:02 - INFO: 实际字符数为：11/20
+2022-09-06 13:18:02 - INFO: 字符数检测成功
+2022-09-06 13:18:02 - INFO: 点击--完成创建
+2022-09-06 13:18:05 - INFO: 创建成功
+2022-09-06 13:18:08 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:18:08 - INFO: 点击--监看/回放<br/> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:18:13 - INFO: 点击--展开左侧侧边栏
+2022-09-06 13:18:16 - INFO: 检测到「批量操作」，侧边栏展开成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-批量操作-全选下载</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_download</td>
+          <td class="col-duration">26.57</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:18:16 - INFO: 点击--批量操作
+2022-09-06 13:18:19 - INFO: 点击--全选
+2022-09-06 13:18:22 - INFO: 点击--下载
+2022-09-06 13:18:24 - INFO: 点击--确认下载
+2022-09-06 13:18:27 - INFO: 图像识别查找--允许下载多个文件
+2022-09-06 13:18:28 - INFO: 识别文件截图为：/Users/yhy/Desktop/AutoTest/report/22_09_06_13_04_25/screen/find_22_09_06_13_18_28.png
+2022-09-06 13:18:30 - INFO: 检测到图像，中心坐标为--(380, 195)
+2022-09-06 13:18:30 - INFO: 移动到坐标--380, 195
+2022-09-06 13:18:30 - INFO: 点击允许下载多个文件
+2022-09-06 13:18:42 - INFO: 当前机位文件数为：8
+2022-09-06 13:18:42 - INFO: 下载文件数量为：8
+2022-09-06 13:18:42 - INFO: 检测到下载文件夹文件数相同，下载成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-批量操作-复制到拍摄</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_copy_to_shoot</td>
+          <td class="col-duration">42.66</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:18:42 - INFO: 点击--批量操作
+2022-09-06 13:18:45 - INFO: 点击--全选
+2022-09-06 13:18:48 - INFO: 点击--复制
+2022-09-06 13:18:53 - INFO: 点击--拍摄
+2022-09-06 13:19:00 - INFO: 点击--确定
+2022-09-06 13:19:03 - INFO: 等待10秒钟复制完成
+2022-09-06 13:19:19 - INFO: 点击--展开左侧侧边栏
+2022-09-06 13:19:21 - INFO: 检测到「批量操作」，侧边栏展开成功
+2022-09-06 13:19:21 - INFO: 点击--测试机位-自动化
+2022-09-06 13:19:23 - INFO: 当前机位文件数为：8
+2022-09-06 13:19:23 - INFO: 点击--测试机位-自动化-复制
+2022-09-06 13:19:25 - INFO: 当前机位文件数为：8
+2022-09-06 13:19:25 - INFO: 复制成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-批量操作-复制到资源</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_copy_to_media</td>
+          <td class="col-duration">56.93</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:19:25 - INFO: 点击--批量操作
+2022-09-06 13:19:28 - INFO: 点击--全选
+2022-09-06 13:19:34 - INFO: 检测到新标签页，点击切换标签页
+2022-09-06 13:19:46 - INFO: 当前资源文件数为：127
+2022-09-06 13:19:46 - INFO: 切回主标签页
+2022-09-06 13:19:48 - INFO: 当前机位文件数为：8
+2022-09-06 13:19:48 - INFO: 点击--复制
+2022-09-06 13:19:53 - INFO: 点击--资源
+2022-09-06 13:19:55 - INFO: 点击--全部资源
+2022-09-06 13:19:58 - INFO: 点击--确定
+2022-09-06 13:20:01 - INFO: 等待10秒钟复制完成
+2022-09-06 13:20:11 - INFO: 检测到新标签页，点击切换标签页
+2022-09-06 13:20:20 - INFO: 当前资源文件数为：135
+2022-09-06 13:20:20 - INFO: 文件数检测完成，复制到资源成功
+2022-09-06 13:20:20 - INFO: 切回主标签页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-批量操作-删除</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_delete_files</td>
+          <td class="col-duration">13.32</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:20:22 - INFO: 点击--测试机位-自动化-复制
+2022-09-06 13:20:24 - INFO: 点击--批量操作
+2022-09-06 13:20:27 - INFO: 点击--全选
+2022-09-06 13:20:30 - INFO: 点击--删除
+2022-09-06 13:20:32 - INFO: 点击--删除
+2022-09-06 13:20:33 - INFO: 删除成功！
+2022-09-06 13:20:33 - INFO: 点击--测试机位-自动化-复制
+2022-09-06 13:20:35 - INFO: 当前机位文件数为：0
+2022-09-06 13:20:35 - INFO: 文件删除成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-隐藏左边侧边栏</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_hide_left_view</td>
+          <td class="col-duration">4.18</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:20:35 - INFO: 点击--收起左侧侧边栏
+2022-09-06 13:20:37 - INFO: 未检测到「批量操作」，侧边栏收起成功
+2022-09-06 13:20:37 - INFO: 点击--隐藏左边侧边栏
+2022-09-06 13:20:39 - INFO: 检测到左边侧边栏宽度为0，隐藏成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-显示左边侧边栏</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_left_view.py::TestCase::test_show_left_view</td>
+          <td class="col-duration">5.14</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:20:39 - INFO: 点击--显示左边侧边栏
+2022-09-06 13:20:41 - INFO: 检测到左边侧边栏宽度不为0，显示成功<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:20:41 - INFO: 点击--返回
+2022-09-06 13:20:44 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-设置审阅状态</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_right_view.py::TestCase::test_set_read_status</td>
+          <td class="col-duration">15.21</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log setup------------------------------- <br/>2022-09-06 13:20:44 - INFO: 检测到测试项目
+2022-09-06 13:20:48 - INFO: 检测到机位： 测试机位-自动化
+2022-09-06 13:20:48 - INFO: 点击--监看/回放<br/> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:20:53 - INFO: 点击--备选
+2022-09-06 13:21:00 - INFO: 检测到审阅状态icon<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-文件重命名</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_right_view.py::TestCase::test_rename</td>
+          <td class="col-duration">4.25</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:04 - INFO: 当前文件名为：rename.jpeg
+2022-09-06 13:21:04 - INFO: 文件名修改成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-文件设置评分</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_right_view.py::TestCase::test_set_grade</td>
+          <td class="col-duration">2.09</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:04 - INFO: 当前评分为--0
+2022-09-06 13:21:04 - INFO: 设置评分为：1颗🌟
+2022-09-06 13:21:06 - INFO: 当前评分为--1
+2022-09-06 13:21:06 - INFO: 评分设置成功<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>机位详情页-添加意见</td>
+          <td class="col-name">scripts/case/shoot/camera_detail/test_detail_right_view.py::TestCase::test_discussion</td>
+          <td class="col-duration">12.38</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:06 - INFO: 点击--审评意见
+2022-09-06 13:21:09 - INFO: 点击--发送
+2022-09-06 13:21:15 - INFO: 添加意见成功<br/> -----------------------------Captured log teardown------------------------------ <br/>2022-09-06 13:21:15 - INFO: 点击--返回
+2022-09-06 13:21:18 - INFO: 当前在拍摄首页<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-移除用户测试</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_remove_member.py::TestCase::test_remove_member</td>
+          <td class="col-duration">18.51</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:18 - INFO: 检测到测试项目
+2022-09-06 13:21:24 - INFO: 点击--成员管理
+2022-09-06 13:21:26 - INFO: 点击--设置
+2022-09-06 13:21:28 - INFO: 点击--移除成员
+2022-09-06 13:21:30 - INFO: 点击--移除
+2022-09-06 13:21:32 - INFO: 移除成员成功
+2022-09-06 13:21:35 - INFO: 点击--关闭成员管理界面<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>拍摄项目设置-删除项目</td>
+          <td class="col-name">scripts/case/shoot/project_menu/test_shoot_project_delete.py::TestCase::test_delete</td>
+          <td class="col-duration">16.57</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:37 - INFO: 检测是否存在创建的测试项目
+2022-09-06 13:21:37 - INFO: 我的拍摄项目列表为：[&#x27;测试-自动化&#x27;, &#x27;大文件测试&#x27;, &#x27;12&#x27;, &#x27;测试&#x27;, &#x27;多文件测试&#x27;]
+2022-09-06 13:21:37 - INFO: 项目总数为：5
+2022-09-06 13:21:37 - INFO: 检测到创建测试项目
+2022-09-06 13:21:37 - INFO: 点击--更多设置
+2022-09-06 13:21:39 - INFO: 点击--删除项目
+2022-09-06 13:21:39 - INFO: 点击--删除项目
+2022-09-06 13:21:42 - INFO: 点击--删除
+2022-09-06 13:21:50 - INFO: 我的拍摄项目列表为：[&#x27;大文件测试&#x27;, &#x27;12&#x27;, &#x27;测试&#x27;, &#x27;多文件测试&#x27;]
+2022-09-06 13:21:50 - INFO: 当前项目数为：4
+2022-09-06 13:21:50 - INFO: 删除成功
+2022-09-06 13:21:53 - INFO: 我的拍摄项目列表为：[&#x27;大文件测试&#x27;, &#x27;12&#x27;, &#x27;测试&#x27;, &#x27;多文件测试&#x27;]<br/></div></td></tr></tbody>
+      <tbody class="passed results-table-row">
+        <tr>
+          <td class="col-result">Passed</td>
+          <td>退出浏览器</td>
+          <td class="col-name">scripts/teardown/test_close.py::TestCase::test_close</td>
+          <td class="col-duration">0.83</td></tr>
+        <tr>
+          <td class="extra" colspan="4">
+            <div class="log"> -------------------------------Captured log call-------------------------------- <br/>2022-09-06 13:21:53 - INFO: 关闭浏览器！
+2022-09-06 13:21:54 - INFO: 关闭浏览器！<br/></div></td></tr></tbody></table></body></html>

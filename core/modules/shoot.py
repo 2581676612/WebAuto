@@ -1174,13 +1174,11 @@ class Shoot(Control):
 
     def copy_to_media(self):
         """复制到资源"""
-        shoot_handle = self.driver.current_window_handle
         self.open_another_page(f'{self.url}media/all')
-        media_handle = self.get_another_page()
-        self.driver.switch_to.window(media_handle)
+        self.switch_to_another_page()
         time.sleep(10)
         cur_count = self.get_media_file_count()
-        self.driver.switch_to.window(shoot_handle)
+        self.switch_to_main_page()
         copy_count = self.get_current_camera_file_count()
         self.click_by_condition('xpath', '//div[@class="user-opt-wrap"]/div[contains(text(), "复制")]', '复制')
         time.sleep(3)
@@ -1194,17 +1192,17 @@ class Shoot(Control):
         # else:
         #     logger.error('未检测到复制成功通知')
         #     assert 0
-        self.driver.switch_to.window(media_handle)
+        self.switch_to_another_page()
         self.refresh()
         if self.get_media_file_count() == cur_count + copy_count:
             logger.info('文件数检测完成，复制到资源成功')
             self.driver.close()
-            self.driver.switch_to.window(shoot_handle)
+            self.switch_to_main_page()
             return True
         else:
             logger.error('文件数检测完成，复制到资源失败')
             self.driver.close()
-            self.driver.switch_to.window(shoot_handle)
+            self.switch_to_main_page()
             assert 0
 
     def delete_files(self):

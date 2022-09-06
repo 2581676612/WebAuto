@@ -5,27 +5,23 @@ import screeninfo
 import shutil
 import time
 import pyautogui
-import pytest
 import core.base.parse as parse
 
 from core.base.logger import logger
-from core.base.cv import ImgDeal
 from core.modules.control import Control
+import selenium.common.exceptions as ex
 
 
 class Project(Control):
+    def enter_project_view(self):
+        """进入项目首页"""
+        url = self.url + 'project'
+        self.open_page(url)
+
     def back_to_project_index(self):
         """返回项目首页"""
-        for i in range(5):
-            if self.check_condition('class', 'avatar-wrapper'):
-                logger.info('当前在项目首页')
-                break
-            else:
-                if self.check_condition('class', 'iconfanhui_fanhui'):
-                    self.click_by_condition('class', 'iconfanhui_fanhui', '返回')
-        else:
-            logger.error('未返回到项目首页')
-            assert 0
+        self.enter_project_view()
+        time.sleep(3)
 
     def open_project_menu(self, p_name=parse.project_name):
         """打开项目菜单栏"""
@@ -45,7 +41,7 @@ class Project(Control):
 
     def close_project_setting(self):
         """关闭项目设置"""
-        self.click_by_condition('xpath', '//span[contains(text(), "项目设置")]/../i', '关闭项目设置')
+        self.click_by_condition_index('xpath', '//div[@class="dialog-header"]//i', -1, '关闭项目设置')
 
     def touch_to_project(self):
         """选择、打开项目"""
@@ -82,6 +78,7 @@ class Project(Control):
                 self.wait_until_text(text='保存项目成功')
             else:
                 logger.info('防录屏开关为未打开状态')
+        time.sleep(2)
         self.close_project_setting()
 
     def check_project_has_file(self):
@@ -94,7 +91,6 @@ class Project(Control):
     def upload_file(self, file='', select_all=False):
         """上传文件"""
         for i in range(5):
-            self.touch_to_project()
             self.click_by_condition('xpath', '//button[contains(text(), "上传/新建")]', '上传/新建')
             self.click_by_condition('class', 'el-upload-dragger', '上传文件', 3)
             self.choose_file_to_upload(file, select_all)
@@ -120,13 +116,12 @@ class Project(Control):
 
     def delete_all_files(self):
         """删除所有文件"""
-        self.touch_to_project()
+        self.open_project()
         while self.check_condition('xpath', '//div[@class="project-title"]/span[contains(text(), "文件")]'):
             logger.info('检测到项目内存在文件/文件夹')
-            self.click_by_condition('xpath',
-                                    '//*[@id="project-file__content"]//div[@class="el-tooltip more-icon item"]', '文件设置')
-            logger.info('点击--删除')
-            self.finds_by_condition('xpath', '//div[contains(text(), "删除")]')[-1].click()
+            self.get_project_file_list()[0].click()
+            self.click_by_condition('xpath', '//div[contains(text(), "全选")]', '全选')  # 点击全选
+            self.click_by_condition('class', 'iconshanchu', '删除')
             time.sleep(3)
             self.click_by_condition('xpath', '//*[@class="alert"]//div[text()="删除 "]', '删除', 1)
             self.wait_until_xpath('//p[contains(text(), "删除成功")]')
@@ -208,7 +203,6 @@ class Project(Control):
         """检测防录屏
             open--防录屏状态True/False
         """
-        self.check_video_in_project()  # 检测是否存在视频文件
         if open:
             if self.check_condition('class', 'mark-bg'):
                 logger.info('检测到防录屏标志')
@@ -411,6 +405,10 @@ class Project(Control):
         """关闭成员管理界面"""
         self.click_by_condition_index('xpath', '//div[@class="header-content-box"]/i', -1, '关闭成员管理界面')
 
+    def close_share_dialog(self):
+        """关闭分享界面"""
+        self.click_by_condition('xpath', '//div[@class="dialog-header-content"]/i[2]')
+
     def remove_member(self, member=''):
         """删除用户"""
         if not member:  # 未传参，删除所有用户
@@ -444,7 +442,7 @@ class Project(Control):
             logger.info('项目内成员为1，无法删除')
         self.close_member_setting_view()  # 关闭成员面板
 
-    def change_role(self, member=''):
+    def change_role(self, member='', change_role=''):
         """修改成员角色身份"""
         if not member:  # 检测是否传参
             logger.error('未检测到用户参数!')
@@ -460,7 +458,8 @@ class Project(Control):
                 cur_role = self.find_by_condition('xpath',
                                                   f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="role"]'). \
                     get_attribute('innerText').strip()
-                change_role = '成员' if cur_role == '管理员' else '管理员'
+                if not change_role:
+                    change_role = '成员' if cur_role == '管理员' else '管理员'
                 # 点击成员设置
                 self.click_by_condition('xpath',
                                         f'//li[@class="infinite-list-item"][{i + 1}]/div[@class="ops-wrapper"]',
@@ -497,6 +496,17 @@ class Project(Control):
     def get_project_file_list(self):
         """获取项目文件列表"""
         return self.finds_by_condition('class', 'card-wrapper')
+
+    def get_project_file_name_list(self):
+        """获取项目文件名列表"""
+        if self.check_condition('xpath', '//div[@class="project-title"]/span[text()="文件夹"]'):
+            name_ele_list = self.finds_by_condition('xpath',
+                                                    '//div[@class="file-list"]/div[4]//div[@class="subInfo-title"]')
+        else:
+            name_ele_list = self.finds_by_condition('xpath',
+                                                    '//div[@class="file-list"]/div//div[@class="subInfo-title"]')
+        name_list = [self.get_text(e) for e in name_ele_list]
+        return name_list
 
     def select_all_file(self):
         """全选"""
@@ -570,11 +580,14 @@ class Project(Control):
             logger.error('未找到相匹配测试文件')
             assert 0
 
-    def choose_test_file(self, file_type='img'):
+    def choose_test_file(self, file_type=''):
         """点击选择测试文件
         file_type--选择文件类型 img/video/dir
         """
-        self.get_project_file_list()[self.get_match_file_index(file_type)].click()
+        if file_type:
+            self.get_project_file_list()[self.get_match_file_index(file_type)].click()
+        else:
+            self.get_project_file_list()[0].click()
         time.sleep(3)
 
     def pre_view(self):
@@ -601,7 +614,7 @@ class Project(Control):
         file_name_ele.send_keys(change_name)  # 输入新文件名
         time.sleep(1)
         pyautogui.press('Return')  # 回车确定
-        time.sleep(3)
+        time.sleep(5)
         project_file = self.find_by_condition('xpath', '//div[@class="subInfo-title"]/span')  # 获取修改后文件名
         if project_file.get_attribute('innerText').strip() == change_name:  # 对比判断
             logger.info(f'修改文件名--{change_name} 成功')
@@ -655,14 +668,17 @@ class Project(Control):
         tag_list = self.finds_by_condition('xpath', '//p[contains(text(), "全部标签")]/../ul/li')  # 获取标签列表
         choose_tag = tag_list[index].get_attribute('innerText').strip()  # 获取标签文本
         tag_list[index].click()  # 点击选中标签
-        time.sleep(1)
-        self.click_by_text('span', '添加', False)  # 点击添加
+        time.sleep(3)
+        # self.click_by_text('span', '添加', False)  # 点击添加
         return choose_tag  # 返回选中的标签，后续判断使用
 
     def change_file_tag_by_info(self):
         """修改文件标签"""
         self.click_by_condition('xpath', '//div[@class="file-tickets-cmp"]')  # 点击添加标签
         tag = self.add_file_tag()  # 选中标签，添加
+        self.click_keyboard('esc')
+        self.choose_test_file()
+        time.sleep(3)
         cur_tag = self.find_by_condition('class', 'ticket-name').get_attribute('innerText').strip()  # 获取当前文件标签
         if cur_tag == tag:  # 判断当前标签是否和选中的标签一致
             logger.info('添加标签成功')
@@ -691,18 +707,10 @@ class Project(Control):
         else:
             logger.error('添加链接失败')
             assert 0
-        cur_handle = self.driver.current_window_handle  # 获取当前窗口
-        logger.info(f'当前窗口为：{cur_handle}')
         self.click_by_condition('class', 'tolink', '打开链接')
-        all_handle = self.driver.window_handles  # 获取所有标签页
-        logger.info(f'窗口列表为：{all_handle}')
-        if len(all_handle) == 2:  # 通过判断是否存在两个标签页判断链接是否打开成功
-            logger.info('打开链接成功')
-            self.driver.switch_to.window(cur_handle)  # 切回阅流工作台
-            time.sleep(3)
-        else:
-            logger.error('打开链接失败')
-            assert 0
+        self.close_another_page()
+        logger.info('打开链接成功')
+        time.sleep(3)
 
     def create_dir_by_file(self):
         """通过选中文件创建文件夹"""
@@ -721,13 +729,16 @@ class Project(Control):
         self.select_all_file()  # 选中所有文件
         self.click_by_condition('class', 'iconfuzhi_fuzhi', '复制到')  # 点击复制到
         self.click_by_condition_index('class', 'tab-item', 0, '项目')  # 点击项目
-        self.click_by_condition_index('xpath', f'//div[contains(text(), "{to_project}")]', -1)  # 点击复制到项目
-        self.click_by_text('div', '确定')  # 点击确定
-        if self.wait_until_text(ele_type='strong', text='您复制到项目的文件已成功', timeout=30):  # 检测通知
-            logger.info('检测到复制成功通知')
-        else:
-            logger.error('未检测到复制成功通知')
-            assert 0
+        self.click_by_condition_index('xpath', f'//div[contains(text(), "{to_project}")]', -1, to_project)  # 点击复制到项目
+        self.click_by_text('div', '确定', timeout=2)  # 点击确定
+        logger.info('等待十秒，复制完成')
+        time.sleep(10)
+        # 检测成功文本异常
+        # if self.wait_until_text(text='您复制到项目的文件已成功', timeout=30):  # 检测通知
+        #     logger.info('检测到复制成功通知')
+        # else:
+        #     logger.error('未检测到复制成功通知')
+        #     assert 0
         file_count = len(self.get_project_file_list())  # 项目内文件数
         self.open_project(to_project)  # 打开被复制项目
         new_count = len(self.get_project_file_list())  # 获取被复制项目内文件数
@@ -743,7 +754,7 @@ class Project(Control):
         self.select_all_file()  # 选中所有文件
         self.click_by_condition('class', 'iconmove', '移动到')  # 点击移动到
         self.click_by_condition_index('xpath', f'//div[contains(text(), "{to_project}")]', -1)  # 选择移动到项目
-        self.click_by_text('div', '确定')  # 点击确定
+        self.click_by_text('div', '确定', timeout=0.5)  # 点击确定
         if self.wait_until_text(text='移动成功', timeout=30):  # 检测移动成功toast
             logger.info('检测到移动成功通知')
         else:
@@ -774,6 +785,51 @@ class Project(Control):
             logger.info('检测到播放器，进入文件详情页成功')
         else:
             logger.error('未检测到播放器，进入文件详情页失败')
+            assert 0
+
+    def open_file_settings(self, file_index=0):
+        """打开文件设置 file_index--要打开的文件索引"""
+        self.click_by_condition_index('xpath', '//*[@id="project-file__content"]//\
+                                                        div[@class="el-tooltip more-icon item"]', file_index, '文件设置')
+
+    def set_top(self):
+        """置顶"""
+        end_file = self.get_project_file_name_list()[-1]
+        logger.info(f'文件列表最后一个文件为：{end_file}')
+        self.open_file_settings(-1)
+        self.click_by_condition_index('xpath', '//div[contains(text(), "置顶")]', -1, '置顶')
+        if self.wait_until_text(text='置顶成功'):
+            logger.info('检测到「置顶成功」')
+        else:
+            logger.error('未检测到「置顶成功」')
+            assert 0
+        self.check_top(end_file)
+
+    def check_top(self, file_name):
+        """检测置顶状态"""
+        if self.get_project_file_name_list()[0] == file_name:
+            logger.info('检测到第一个文件为置顶文件')
+        else:
+            logger.error('第一个文件不是置顶文件')
+            assert 0
+        if self.check_condition('xpath', '//div[@class="verify-info--wrapper"]/div[text()="TOP"]'):
+            logger.info('检测到置顶图标')
+        else:
+            logger.error('未检测到置顶图标')
+            assert 0
+
+    def set_read_status(self, status='待审核'):
+        """设置审阅状态"""
+        self.open_file_settings()
+        self.click_by_condition_index('xpath', '//span[contains(text(), "设置审阅状态")]', -1, '设置审阅状态')
+        self.click_by_condition_index('xpath', f'//div[contains(text(), "{status}")]', -1, status)
+
+    def check_read_status(self, status='待审核'):
+        """检测审阅状态"""
+        if self.check_condition('xpath', f'//div[@class="verify-box"]/span[text()="{status}"]'):
+            logger.info('检测到审阅状态图标')
+        else:
+            logger.error('未检测到审阅状态图标')
             assert 0
 
     def enter_file_detail_view(self, file_type='img'):
@@ -885,8 +941,6 @@ class Project(Control):
 
     def open_keyboard_guide(self):
         """显示键盘快捷键"""
-        # self.hover('keyboard_guide')  # 鼠标悬停在元素上方，显示'键盘快捷键'
-        # time.sleep(2)
         self.click_by_condition_index('class', 'player-ctrl__item--hover', -2, '键盘快捷键')
         keyboard_button = self.find_by_condition('xpath', '//div[contains(text(), "键盘快捷键")]/../../..')  # 获取'键盘快捷键'按钮元素
         keyboard_button_style = self.get_ele_style(keyboard_button)  # 获取'键盘快捷键'按钮样式
@@ -1201,3 +1255,262 @@ class Project(Control):
             self.video_player_stop()
             assert 0
         self.video_player_stop()
+
+    def check_cover_icon_status(self, is_gray=True):
+        """检测设置封面图标状态"""
+        icon_ele = self.find_by_condition('class', 'icontupian_tupian')
+        if 'is-grey' in icon_ele.get_attribute('class'):
+            logger.info('检测到设置封面图标为置灰状态')
+            if is_gray:
+                return True
+            else:
+                assert 0
+        else:
+            logger.info('检测到设置封面图标非置灰状态')
+            if is_gray:
+                assert 0
+            else:
+                return True
+
+    def check_fangluping_icon_status(self, is_gray=True):
+        """检测设置封面图标状态"""
+        icon_ele = self.find_by_condition('class', 'iconic_fangluping')
+        if 'is-grey' in icon_ele.get_attribute('class'):
+            logger.info('检测到防录屏图标为置灰状态')
+            if is_gray:
+                return True
+            else:
+                assert 0
+        else:
+            logger.info('检测到防录屏图标非置灰状态')
+            if is_gray:
+                assert 0
+            else:
+                return True
+
+    def add_discussion(self, info='这是一条评论'):
+        """添加审批意见"""
+        self.click_by_text(text='审评意见')
+        input_ele = self.find_by_condition('id', 'input-area')
+        input_ele.clear()
+        input_ele.send_keys(info)
+        self.click_by_text(text='发送', timeout=5)
+
+    def check_discussion(self, info='这是一条评论'):
+        first_dis_ele = self.finds_by_condition('xpath', '//span[@class="comment-item-content-text"]/span')[0]
+        first_dis = self.get_text(first_dis_ele)
+        if first_dis == info:
+            logger.info('添加意见成功')
+            return True
+        else:
+            logger.error('添加意见失败')
+            assert 0
+
+    def share(self):
+        """审阅分享"""
+        self.click_by_text(ele_type='button', text='审阅分享')
+        if self.check_text(text='创建审阅分享'):
+            logger.info('检测到分享弹窗')
+        else:
+            logger.error('未检测到分享弹窗')
+            assert 0
+        self.click_by_text(ele_type='p', text='分享链接', timeout=5)
+        if self.check_text(ele_type='span', text='分享链接'):
+            logger.info('检测到分享链接')
+        else:
+            logger.error('未检测到分享链接')
+            self.close_share_dialog()
+            assert 0
+        self.click_by_condition('class', 'copy-btn', '复制', timeout=0.5)
+        if self.wait_until_text(text='复制成功'):
+            logger.info('检测到「复制成功」')
+        else:
+            logger.error('未检测到「复制成功」')
+            self.close_share_dialog()
+            assert 0
+        link = re.findall(r'链接：(.*?)\n', self.get_copy_text())
+        if link:
+            logger.info(f'分享链接为：{link[0]}')
+            self.close_share_dialog()
+            return link[0]
+        else:
+            logger.error('未提取到链接')
+            self.close_share_dialog()
+            assert 0
+
+    def get_file_list_in_share_page(self):
+        """获取分享落地页文件名列表"""
+        name_ele_list = self.finds_by_condition('xpath', '//div[@class="subInfo-title"]/span')
+        name_list = [self.get_text(e) for e in name_ele_list]
+        return name_list
+
+    def collect(self):
+        """分享落地页-收藏"""
+        self.click_by_condition('class', 'collect', '收藏', 0)
+        if self.wait_until_text(text='不能收藏自己的链接'):
+            logger.info('检测到「不能收藏自己的链接」')
+        elif self.check_text(text='收藏成功'):
+            logger.info('检测到收藏成功')
+        else:
+            logger.error('收藏功能异常')
+            assert 0
+
+    def download_in_share_page(self):
+        """分享落地页下载"""
+        self.click_by_condition('class', 'download', '下载')
+        self.click_by_condition_index('class', 'file-card-wrapper', 0, '选择文件')
+        self.click_by_condition('class', 'download', '下载')
+        self.click_by_text(ele_type='button', text='取消')
+        logger.info('等待10秒下载文件')
+        time.sleep(10)
+        if len(os.listdir(self.download_path)):
+            logger.info('检测到下载文件，下载成功')
+            shutil.rmtree(self.download_path)  # 清空下载文件夹
+            os.mkdir(self.download_path)
+        else:
+            logger.error('未检测到下载文件')
+            assert 0
+
+    def move(self):
+        """转存"""
+        self.switch_to_main_page()
+        file_count = len(self.get_project_file_list())
+        logger.info(f'转存前文件数为：{file_count}')
+        self.switch_to_another_page()
+        self.click_by_condition('class', 'move', '转存')
+        self.click_by_condition_index('class', 'file-card-wrapper', 0, '选择文件')
+        self.click_by_condition('class', 'move', '转存')
+        self.click_by_text(text=parse.project_name)
+        self.click_by_text(text='确定')
+        logger.info('等待10秒转存')
+        time.sleep(10)
+        self.switch_to_main_page()
+        self.refresh()
+        self.open_project()
+        cur_file_count = len(self.get_project_file_list())
+        logger.info(f'转存后文件数为：{cur_file_count}')
+        self.switch_to_another_page()
+        if cur_file_count - file_count == 1:
+            logger.info('检测到项目文件数增加，转存成功')
+        else:
+            logger.error('转存失败')
+            assert 0
+
+    def check_share_download_permission(self, download=False):
+        """检测分享落地页下载权限"""
+        ele = self.find_by_condition('class', 'download')
+        if 'is-grey' in ele.get_attribute('class'):
+            logger.info('下载按钮置灰')
+            if download:
+                assert 0
+        else:
+            logger.info('下载按钮未置灰')
+            if not download:
+                assert 0
+
+    def check_share_move_permission(self, move=False):
+        """检测分享落地页下载权限"""
+        ele = self.find_by_condition('class', 'move')
+        if 'is-grey' in ele.get_attribute('class'):
+            logger.info('转存按钮置灰')
+            if move:
+                assert 0
+        else:
+            logger.info('转存按钮未置灰')
+            if not move:
+                assert 0
+
+    def enter_share_file_detail(self):
+        """进入分享文件详情页"""
+        logger.info('双击文件进入详情页')
+        self.click_by_condition_index('class', 'file-thumbnail', 0, timeout=0.1)
+        self.click_by_condition_index('class', 'file-thumbnail', 0)
+
+    def check_share_comment_permission(self, comment=False):
+        """分享评论权限验证"""
+        self.click_by_text(text='发送')
+        if self.check_text(text='您无权进行此操作'):
+            logger.info('无评论权限')
+            self.click_by_condition('class', 'btnCommon', '好的')
+            if comment:
+                assert 0
+        else:
+            logger.info('可评论')
+            if not comment:
+                assert 0
+
+    def close_project_permission(self, *args, role='成员'):
+        """关闭身份权限"""
+        role_dict = {'成员': 'member',
+                     '管理员': 'admin'}
+        self.click_by_condition('class', 'down-box', '身份权限设置')
+        for s in args:
+            path = f'//p[text()="{s}"]/../..//div[@class="{role_dict[role]}-select"]/span[1]'
+            ele = self.find_by_condition('xpath', path)
+            if 'is_checked' in ele.get_attribute('class'):
+                logger.info(f'{s} 权限为开启状态，点击关闭')
+                try:
+                    ele.click()
+                except ex.ElementClickInterceptedException as e:
+                    logger.error('元素点击异常')
+                    self.close_project_setting()
+                    assert 0
+                if self.wait_until_text(text='保存项目成功'):
+                    logger.info(f'{s} 权限配置成功')
+                    time.sleep(2)
+                else:
+                    logger.error(f'{s} 权限配置异常')
+                    assert 0
+            else:
+                logger.info(f'{s} 权限为关闭状态')
+        self.close_project_setting()
+
+    def check_change_info_permission_close(self):
+        """检测自定义信息权限关闭"""
+        try:
+            self.click_by_condition_index('xpath', '//div[@class="rate-icon-wrap"]/span', 0, '自定义信息', 0)
+            logger.error('编辑成功')
+            assert 0
+        except ex.ElementClickInterceptedException as e:
+            logger.info('该元素不可点击')
+
+    def check_invite_permission_close(self):
+        """检测邀请权限关闭"""
+        if self.check_condition('class', 'add-btn'):
+            logger.error('检测到邀请按钮')
+            assert 0
+        else:
+            logger.info('未检测到邀请按钮')
+
+    def check_delete_permission_close(self):
+        """检测删除权限关闭"""
+        if self.check_condition('class', 'iconshanchu'):
+            logger.error('检测到删除按钮')
+            assert 0
+        else:
+            logger.info('未检测到删除按钮')
+
+    def check_copy_permission_close(self):
+        """检测复制权限关闭"""
+        xpath = '//div[@class="share-control--wrapper"]//span[@class="iconfont iconshanchu operation-icon"]'
+        if self.check_condition('xpath', xpath):
+            logger.error('检测到复制按钮')
+            assert 0
+        else:
+            logger.info('未检测到复制按钮')
+
+    def check_download_permission_close(self):
+        """检测下载权限关闭"""
+        if self.check_condition('class', 'iconjiaofu_download'):
+            logger.error('检测到下载按钮')
+            assert 0
+        else:
+            logger.info('未检测到下载按钮')
+
+    def check_share_permission_close(self):
+        """检测分享权限关闭"""
+        if self.check_text(ele_type='button', text='审阅分享'):
+            logger.error('检测到分享按钮')
+            assert 0
+        else:
+            logger.info('未检测到分享按钮')

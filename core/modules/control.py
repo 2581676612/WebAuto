@@ -35,6 +35,7 @@ class Control(object):
 
         self.first_enter_shoot = True
         self.first_enter_project = True
+        self.cur_handle = self.driver.current_window_handle  # 获取当前窗口
 
     def quit(self):
         # 关闭Chromedriver
@@ -249,9 +250,10 @@ class Control(object):
         """
         # 超时时间为10秒，每1秒检查1次，直到元素出现
         xpath = f'//{ele_type}[contains(text(), "{text}")]'
-        if WebDriverWait(self.driver, timeout, wait).until(ec.visibility_of_element_located((By.XPATH, xpath))):
+        try:
+            WebDriverWait(self.driver, timeout, wait).until(ec.visibility_of_element_located((By.XPATH, xpath)))
             return True
-        else:
+        except ex.TimeoutException as e:
             logger.error('未检测到该文本！')
             return False
 
@@ -322,8 +324,7 @@ class Control(object):
         except ex.NoSuchElementException as e:
             return False
 
-    @staticmethod
-    def choose_file_to_upload(file='', select_all=False):
+    def choose_file_to_upload(self, file='', select_all=False):
         """选择文件上传"""
         # 请选择test_file目录下的测试文件
         file_path = os.path.join(parse.main_path, 'statics', 'upload_file')
@@ -335,29 +336,23 @@ class Control(object):
         if platform_str in ['mac', 'darwin']:
             # 打开文件搜索框
             logger.info('打开搜索框')
-            # pyautogui.keyDown('shift')
-            # pyautogui.keyDown('command')
-            # pyautogui.keyDown('g')
-            # time.sleep(1)
-            # pyautogui.keyUp('g')
-            # pyautogui.keyUp('command')
-            # pyautogui.keyUp('shift')
-            pyautogui.hotkey('shift', 'command', 'g', interval=0.25)  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
+            self.click_keyboard('shift', 'command', 'g')  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
             time.sleep(2)
             # 粘贴文件路径
             logger.info('粘贴文件路径')
-            pyautogui.hotkey('command', 'v', interval=0.25)
+            self.click_keyboard('command', 'v')
             time.sleep(2)
             # 回车确定
+
             pyautogui.press('Return')
             time.sleep(1)  # 必须停留一下，从粘贴到连续键入两个回车键有问题
             if select_all:
                 logger.info('全选')
-                pyautogui.hotkey('command', 'a', interval=0.25)
+                self.click_keyboard('command', 'a')
                 time.sleep(1)
             pyautogui.press('Return')
         elif 'windows' in platform_str:
-            pyautogui.hotkey('ctrl', 'v', interval=0.25)
+            self.click_keyboard('ctrl', 'v')
             time.sleep(1)
             pyautogui.press('enter')
         time.sleep(3)
@@ -376,7 +371,7 @@ class Control(object):
         self.finds_by_condition('class', 'el-input__inner')[1].send_keys(pwd)
         time.sleep(1)
         self.click_by_condition('class', 'login-btn-container', '登录')
-        time.sleep(3)
+        time.sleep(5)
         if self.find_by_condition('class', 'avatar-wrapper'):
             logger.info('登录成功！')
         else:
@@ -583,21 +578,30 @@ class Control(object):
             logger.error('下载文件夹和测试项目文件数不一致，下载失败')
             assert 0
 
-    def get_another_page(self):
-        """获取另一个标签页"""
-        cur_handle = self.driver.current_window_handle  # 获取当前窗口
+    def switch_to_another_page(self):
+        """切换到另一个标签页"""
         all_windows = self.driver.window_handles
         for handle in all_windows:
-            if handle != cur_handle:
-                return handle
+            if handle != self.cur_handle:
+                logger.info(f'检测到新标签页，点击切换标签页')
+                self.driver.switch_to.window(handle)
+                time.sleep(2)
+                break
         else:
             logger.error('获取另一个标签页异常')
             assert 0
+
+    def switch_to_main_page(self):
+        """切回主标签页"""
+        logger.info('切回主标签页')
+        self.driver.switch_to.window(self.cur_handle)
+        time.sleep(2)
 
     def open_another_page(self, url):
         """新的标签页打开页面"""
         new_window = f'window.open("{url}")'
         self.driver.execute_script(new_window)
+        time.sleep(3)
 
     def get_media_file_count(self):
         """获取资源文件数"""
@@ -605,3 +609,14 @@ class Control(object):
         media_file_count = int(re.findall(r'(\d+)个文件', self.get_text(media_file_ele))[0])
         logger.info(f'当前资源文件数为：{media_file_count}')
         return media_file_count
+
+    @staticmethod
+    def click_keyboard(*args, interval=0.25):
+        logger.info(f'模拟键盘操作：{args}')
+        pyautogui.hotkey(*args, interval=interval)
+
+    def close_another_page(self):
+        """关闭其他标签页"""
+        self.switch_to_another_page()
+        self.driver.close()
+        self.switch_to_main_page()
