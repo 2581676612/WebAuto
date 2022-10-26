@@ -9,7 +9,8 @@ class Setting(object):
     def test_run(file=''):
         file_name = file.split('\\')[-1].split('.')[0].split('/')[-1]
         # 记录详细日志、生成HTML文件、日志显示颜色、报告显示控制台输出
-        cmd_line = ['-sv', '--self-contained-html', '--color=yes', '--capture=sys']
+        mark_cmd = [] if parse.run_mark == 'None' else ['-m', parse.run_mark]
+        cmd_line = mark_cmd + ['-sv', '--self-contained-html', '--color=yes', '--capture=sys']
         if '.txt' in file:
             with open(file, 'r') as f:
                 test_file_list = f.readlines()

@@ -1,9 +1,20 @@
 import os
+import platform
+import time
+
+import pyautogui
 import importlib.machinery
 import inspect
 
+from core.base.logger import logger
+from core.base.cv import ImgDeal
+from core.base import parse
+
 
 class Common(object):
+    def __init__(self):
+        self.obs_img_path = os.path.join(parse.main_path, 'statics', 'obs')
+
     @staticmethod
     def get_class_name():
         cls_list = []
@@ -18,3 +29,34 @@ class Common(object):
             if cls[0].lower() in file_name_list:
                 cls_list.append(cls)
         return cls_list
+
+    @staticmethod
+    def click_by_position(pos):
+        """根据坐标点击"""
+        cur_x, cur_y = pyautogui.position()
+        logger.info(f'点击坐标--{pos[0]}, {pos[1]}')
+        pyautogui.moveTo(pos[0], pos[1])
+        pyautogui.click()
+        pyautogui.moveTo(cur_x, cur_y)
+        time.sleep(2)
+
+    @staticmethod
+    def get_img_position(img, info=None):
+        """检测文件是否存在,获取坐标"""
+        pos = ImgDeal.find_by_img(img, info)
+        if pos:
+            return pos
+        else:
+            assert 0
+
+    @staticmethod
+    def click_keyboard(*args, interval=0.25):
+        logger.info(f'模拟键盘操作：{args}')
+        pyautogui.hotkey(*args, interval=interval)
+        time.sleep(1)
+
+    def click_by_img(self, img, info, timeout=2):
+        """根据图片获取坐标并点击"""
+        pos = self.get_img_position(img, info)
+        self.click_by_position(pos)
+        time.sleep(timeout)

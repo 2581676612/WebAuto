@@ -1,3 +1,5 @@
+import ftplib
+import os.path
 import re
 import pyautogui
 import pytest
@@ -128,8 +130,14 @@ class Shoot(Control):
                                               f'//div[@class="shoot-list__wrapper"][1]//span[contains(text(), "{p_name}")]')
         if len(setting_ele) >= 1:
             logger.info('检测到测试项目')
-            setting_ele[0].click()
-            time.sleep(3)
+            for i in range(3):
+                setting_ele[0].click()
+                time.sleep(3)
+                if self.check_text(text='机位列表'):
+                    break
+                else:
+                    logger.info('项目页显示异常，刷新页面重试')
+                    self.refresh()
         else:
             logger.error('未找到测试项目，请检查项目是否存在！')
             assert 0
@@ -140,8 +148,14 @@ class Shoot(Control):
                                               f'//div[@class="shoot-list__wrapper"][2]//span[contains(text(), "{p_name}")]')
         if len(setting_ele) >= 1:
             logger.info('检测到加入项目')
-            setting_ele[0].click()
-            time.sleep(3)
+            for i in range(3):
+                setting_ele[0].click()
+                time.sleep(3)
+                if self.check_text(text='机位列表'):
+                    break
+                else:
+                    logger.info('项目页显示异常，刷新页面重试')
+                    self.refresh()
         else:
             logger.error('未找到加入项目，请检查项目是否存在！')
             assert 0
@@ -154,6 +168,8 @@ class Shoot(Control):
 
     def open_project_settings(self, setting='拍摄设置', timeout=2):
         """打开项目设置"""
+        if self.is_team() and setting in ['添加成员', '成员管理']:
+            pytest.skip('团队版暂不支持此操作')
         self.click_by_condition('xpath', f'//li[contains(text(), "{setting}")]', setting, timeout)
 
     def copy_invite_link(self, role='审阅者'):
@@ -370,7 +386,7 @@ class Shoot(Control):
             logger.info('创建失败')
             assert 0
 
-    def remove_camera(self, camera=''):
+    def remove_camera(self, camera=parse.camera):
         """删除机位"""
         while camera in self.get_camera_name_list():
             self.open_camera_setting(camera)
@@ -414,11 +430,15 @@ class Shoot(Control):
             self.open_camera_setting(camera)
             self.click_by_text('div', '拍摄素材回放')
             self.click_by_condition('class', 'shoot__upload', '上传文件', 3)
-            self.choose_file_to_upload(file, select_all)
+            if not self.choose_file_to_upload(file, select_all):
+                self.close_camera_setting()
+                continue
             self.open_upload_page()
             if self.is_file_upload():
                 break
             logger.info('文件未正确选取，重试！')
+        else:
+            pytest.exit('上传失败')
 
     def upload_dir(self, camera=''):
         """上传文件夹"""
@@ -426,13 +446,17 @@ class Shoot(Control):
             self.open_camera_setting(camera)
             self.click_by_text('div', '拍摄素材回放')
             self.click_by_condition('xpath', '//div[@class="upload-wrap"]/div[2]', '上传文件夹', 3)
-            self.choose_file_to_upload()
+            if not self.choose_file_to_upload():
+                self.close_camera_setting()
+                continue
             time.sleep(3)
             self.click_upload_img()
             self.open_upload_page()
             if self.is_file_upload():
                 break
             logger.info('文件未正确选取，重试！')
+        else:
+            pytest.exit('上传失败')
 
     def check_advertisement(self, status='open'):
         """检测广告位状态 open/close"""
@@ -516,8 +540,22 @@ class Shoot(Control):
         copy_text = self.get_copy_text()
         if copy_text == link_str:
             logger.info('复制FTP地址成功')
+            self.close_camera_setting()
+            file_count = self.get_camera_file_count_in_camera_list()
+            if self.upload_by_ftp(host, user, password, 'img.jpg'):
+                logger.info('ftp上传成功，等待5秒后检测机位文件数是否新增')
+                time.sleep(5)
+                if self.get_camera_file_count_in_camera_list() == file_count + 1:
+                    logger.info('检测到文件数增加，上传成功')
+                else:
+                    logger.error('未检测到文件数增加，上传失败')
+                    assert 0
+            else:
+                logger.error('ftp上传失败')
+                assert 0
         else:
             logger.error(f'复制FTP地址失败-{copy_text}')
+            self.close_camera_setting()
 
     def open_member_view_by_icon(self):
         """点击头像，打开成员管理"""
@@ -542,6 +580,7 @@ class Shoot(Control):
                 continue
             elif ":" in self.get_text(time_ele):
                 logger.info('会议创建成功')
+                time.sleep(3)
                 break
         else:
             logger.error('会议创建超时，创建失败')
@@ -559,13 +598,15 @@ class Shoot(Control):
         self.open_meeting_dialog()
         self.click_by_condition('class', 'leave-host', '离开')
         self.click_by_text('div', '全员结束会议', False)
-        self.click_by_condition('xpath', '//div[@class="el-message-box__btns"]/button[2]', '结束')
+        self.click_by_condition('xpath', '//span[text()="结束"]', '结束')
         self.wait_until_text(text='您已离开语音会议')
         self.wait_until_text(text='会议已结束')
 
     def create_meeting_link(self):
         """创建会议链接"""
         self.click_meeting_icon()
+        if self.is_team():
+            pytest.skip('团队版暂不支持邀请')
         self.click_by_condition('class', 'voice-setting', '邀请入会', 5)
         link_ele = self.find_by_condition('xpath', '//div[@class="invite-link"]/span')
         invite_link = self.get_text(link_ele)
@@ -737,6 +778,8 @@ class Shoot(Control):
 
     def remove_meeting_member(self, user_name):
         """移除会议成员"""
+        if self.is_team():
+            pytest.skip('团队版暂不支持邀请')
         remove_xpath = f'//span[text()="{user_name}"]/../../..//div[@class="hostOptWrap"]/div[2]'
         self.click_by_condition('xpath', remove_xpath, f'移除用户--{user_name}')
         self.wait_until_text(text=f'{user_name}已经被移出会议')
@@ -1065,16 +1108,8 @@ class Shoot(Control):
 
     def back_to_shoot_index(self):
         """返回拍摄首页"""
-        for i in range(5):
-            if self.check_text(text='我的拍摄'):
-                logger.info('当前在拍摄首页')
-                break
-            else:
-                if self.check_condition('class', 'iconfanhui_fanhui'):
-                    self.click_by_condition('class', 'iconfanhui_fanhui', '返回', 3)
-        else:
-            logger.error('未返回到拍摄首页')
-            assert 0
+        url = self.url + 'shoot'
+        self.open_page(url)
 
     def set_read_status(self, status='主推'):
         """设置审阅状态"""
@@ -1124,18 +1159,37 @@ class Shoot(Control):
         logger.info(f'当前机位文件数为：{file_count}')
         return file_count
 
+    def get_camera_file_count(self, camera=parse.camera):
+        """获取指定机位文件数"""
+        camera_ele = self.find_by_condition('xpath', f'//span[text()="{camera}"]/../span[3]')
+        file_count = int(re.findall(r'\((\d+)\)', self.get_text(camera_ele))[0]) - 1
+        logger.info(f'机位-{camera} 文件数为：{file_count}')
+        return file_count
+
+    def get_camera_file_count_in_camera_list(self, camera=parse.camera):
+        """获取指定机位文件数"""
+        camera_ele = self.find_by_condition('xpath', f'//span[text()="{camera}"]/../span[2]')
+        file_count = int(re.findall(r'(\d+)个文件', self.get_text(camera_ele))[0])
+        logger.info(f'机位-{camera} 文件数为：{file_count}')
+        return file_count
+
     def select_all_files(self):
         """全选"""
         self.click_by_text(text='批量操作')
         self.click_by_text(text='全选')
 
+    def cancel_action(self):
+        """取消操作"""
+        self.click_by_text(ele_type='div', text='取消')
+
     def download_files(self):
         """下载文件"""
         self.click_by_condition('xpath', '//div[@class="user-opt-wrap"]/div[contains(text(), "下载")]', '下载')
-        self.click_by_text(text='确认下载')
-        self.click_by_img('allow_download', '允许下载多个文件')  # 浏览器授权允许下载多个文件
+        if not self.is_company():
+            self.click_by_text('div', '确认下载')  # 二次确认
+            self.click_by_img('allow_download', '允许下载多个文件')  # 浏览器授权允许下载多个文件
         time.sleep(10)
-        file_count = self.get_current_camera_file_count()
+        file_count = 1 if self.is_company() else self.get_current_camera_file_count()
         self.check_download(file_count)
 
     def copy_files_to_shoot(self):
@@ -1177,13 +1231,32 @@ class Shoot(Control):
         self.open_another_page(f'{self.url}media/all')
         self.switch_to_another_page()
         time.sleep(10)
-        cur_count = self.get_media_file_count()
+        if self.is_team():
+            try:
+                self.click_by_condition('xpath', '//div[@class="tabbar-wrapper"]/div[text()="我的资源"]', '我的资源')
+            except:
+                logger.error('切换到我的资源失败')
+                self.driver.close()
+                self.switch_to_main_page()
+                self.cancel_action()
+                assert 0
+        try:
+            cur_count = self.get_media_file_count()
+        except:
+            logger.error('获取资源文件数异常')
+            self.driver.close()
+            self.switch_to_main_page()
+            self.cancel_action()
+            assert 0
         self.switch_to_main_page()
         copy_count = self.get_current_camera_file_count()
         self.click_by_condition('xpath', '//div[@class="user-opt-wrap"]/div[contains(text(), "复制")]', '复制')
         time.sleep(3)
         self.click_by_condition_index('class', 'tab-item', 1, '资源')
-        self.click_by_text(text='全部资源')
+        if self.is_team():
+            self.click_by_condition('xpath', '//div[contains(text(), "我的资源")]/../..//div[contains(text(), "全部资源")]')
+        else:
+            self.click_by_text(text='全部资源')
         self.click_by_text(text='确定')
         logger.info('等待10秒钟复制完成')
         time.sleep(10)
@@ -1261,7 +1334,7 @@ class Shoot(Control):
         rename_ele.send_keys(new_name)
         time.sleep(1)
         pyautogui.press('Return')  # 回车确定
-        time.sleep(3)
+        time.sleep(5)
         # self.wait_until_text(text='编辑文件名成功')
 
     def check_rename(self, new_name='rename'):
@@ -1312,6 +1385,36 @@ class Shoot(Control):
             return True
         else:
             logger.error('添加意见失败')
+            assert 0
+
+    def check_file_in_discussion(self):
+        """检测评论附件"""
+        if self.check_condition('class', 'attachment-upload-wrapper'):
+            logger.info('检测到附件')
+        else:
+            logger.error('未检测到附件')
+            assert 0
+
+    def add_file_in_discussion(self):
+        """评论添加附件"""
+        self.click_by_condition('class', 'reply-text', '回复')
+        self.click_by_condition('class', 'attachment-text', '添加附件')
+        self.choose_file_to_upload('img.jpg')
+        reply_text = self.find_by_condition('id', 'reply-textarea')
+        reply_text.clear()
+        reply_text.send_keys('这是一条回复')
+        self.click_by_condition('class', 'send-text', '发送', 3)
+
+    def delete_discussion(self):
+        """删除评论"""
+        comment_list = self.finds_by_condition('class', 'comment-item-wrapper')
+        self._hover(comment_list[0])
+        self.click_by_condition('class', 'deleteWords', '删除')
+        self.click_by_text(text='删除 ', fuzzy=False)
+        if self.wait_until_text(text='删除意见成功'):
+            logger.info('删除意见成功')
+        else:
+            logger.error('删除意见失败')
             assert 0
 
     def check_role_read_permission(self, role='审阅者'):
@@ -1420,3 +1523,413 @@ class Shoot(Control):
         """关闭分享弹窗"""
         self.click_by_condition('class', 'iconquxiao_quxiao', '关闭分享弹窗')
 
+    def open_share_list(self):
+        """打开分享链接列表"""
+        self.click_by_condition('xpath', '//div[@class="file-content-info"]/div/div[2]')
+
+    def open_share_setting(self):
+        """打开分享链接设置"""
+        self.click_by_condition('xpath',
+                                '//div[@class="list-wrapper"]//i[@class="iconfont iconshezhi_shezhi icon-size"]')
+
+    def get_download_permission_in_share(self):
+        """获取分享下载权限"""
+        ele = self.find_by_condition('xpath', '//p[contains(text(), "允许下载和转存")]/../../div[2]')
+        if 'is-checked' in ele.get_attribute('class'):
+            logger.info('下载权限已开启')
+            return True
+        else:
+            logger.info('下载权限未开启')
+            return False
+
+    def allow_download_in_share(self):
+        """允许分享页下载"""
+        if not self.get_download_permission_in_share():
+            self.click_by_condition('xpath', '//p[contains(text(), "允许下载和转存")]/../../div[2]', '允许下载')
+            if not self.get_download_permission_in_share():
+                logger.error('下载权限设置异常')
+                assert 0
+
+    def close_download_in_share(self):
+        """禁止分享页下载"""
+        if self.get_download_permission_in_share():
+            self.click_by_condition('xpath', '//p[contains(text(), "允许下载和转存")]/../../div[2]', '关闭下载')
+            if self.get_download_permission_in_share():
+                logger.error('下载权限设置异常')
+                assert 0
+
+    def get_password_status_in_share(self):
+        """获取链接是否存在密码"""
+        ele = self.find_by_condition('xpath', '//p[contains(text(), "访问密码")]/../../div[2]')
+        if 'is-checked' in ele.get_attribute('class'):
+            logger.info('密码已开启')
+            return True
+        else:
+            logger.info('密码未开启')
+            return False
+
+    def open_password_in_share(self):
+        """开启密码"""
+        if not self.get_password_status_in_share():
+            self.click_by_condition('xpath', '//p[contains(text(), "访问密码")]/../../div[2]', '开启密码')
+            if not self.get_password_status_in_share():
+                logger.error('密码设置异常')
+                assert 0
+
+    def close_password_in_share(self):
+        """关闭密码"""
+        if self.get_password_status_in_share():
+            self.click_by_condition('xpath', '//p[contains(text(), "访问密码")]/../../div[2]', '关闭密码')
+            if self.get_password_status_in_share():
+                logger.error('密码设置异常')
+                assert 0
+
+    def get_share_password(self):
+        """获取分享链接密码"""
+        self.click_by_condition('class', 'iconfenxiang_fenxiang', '分享')
+        password = self.get_text(self.find_by_condition('xpath', '//span[contains(text(), "密码：")]/../span[2]'))
+        logger.info(f'分享密码为：{password}')
+        self.close_share_view()
+        return password
+
+    def check_password_in_share(self, password):
+        """检测分享密码"""
+        pwd_input = self.find_by_condition('xpath', '//div[@class="password-info"]//input')
+        pwd_input.clear()
+        pwd_input.send_keys(password)
+        self.click_by_condition('class', 'append__area', '进入分享落地页', 5)
+        if self.check_text(text='单屏'):
+            logger.info('密码检测成功')
+        else:
+            logger.error('密码检测失败')
+            assert 0
+
+    def check_download_permission_in_share(self, download=True):
+        """检测分享下载权限"""
+        if self.check_condition('class', 'noRight'):
+            logger.info('无下载权限')
+            if download:
+                assert 0
+        else:
+            logger.info('可以下载')
+            if not download:
+                assert 0
+
+    def save_share_setting(self):
+        """保存分享设置"""
+        self.click_by_condition('class', 'confirm', '保存')
+        if self.wait_until_text(text='保存成功'):
+            logger.info('分享设置保存成功')
+        else:
+            logger.error('分享设置保存失败')
+            assert 0
+
+    def get_share_visit_status(self):
+        """获取分享链接访问状态"""
+        ele = self.find_by_condition('//div[@class="status"]/span')
+        if self.get_text(ele) == '已开启':
+            logger.info('链接为访问状态')
+            return True
+        else:
+            logger.error('链接为不可访问状态')
+            return False
+
+    def close_share_visit_status(self):
+        """关闭分享访问"""
+        if self.get_share_visit_status():
+            self.click_by_condition('xpath', '//div[@class="status"]/div', '关闭访问状态')
+            if self.get_share_visit_status():
+                logger.error('关闭访问状态失败')
+                assert 0
+
+    def open_share_visit_status(self):
+        """开启分享访问"""
+        if not self.get_share_visit_status():
+            self.click_by_condition('xpath', '//div[@class="status"]/div', '开启访问状态')
+            if not self.get_share_visit_status():
+                logger.error('开启访问状态失败')
+                assert 0
+
+    def delete_share_link(self):
+        """删除分享链接"""
+        self.click_by_condition('xpath', '//div[@class="opt"]//i[@class="iconfont iconshanchu_shanchu1 icon-size"]',
+                                '删除')
+        self.click_by_text(text='删除 ', fuzzy=False)
+
+    def check_share_delete(self):
+        """检测分享链接被删除"""
+        if self.check_text(text='该邀请链接已失效'):
+            logger.info('检测到分享链接删除成功')
+        else:
+            logger.error('检测到链接删除失败')
+            assert 0
+
+    def check_live(self, timeout=30):
+        """检测直播"""
+        logger.info('检测是否直播成功')
+        cur_time = time.time()
+        while time.time() - cur_time < timeout:
+            time.sleep(5)
+            if self.check_text(text='直播中'):
+                logger.info('检测到直播中')
+                self.click_by_text(text='直播中')
+                return True
+            else:
+                logger.info('未检测到直播中，五秒后再次检测')
+                continue
+        else:
+            logger.error('检测超时')
+            assert 0
+
+    def start_record(self):
+        """开启直播录制"""
+        self.click_by_text(text='直播录制')
+        self.click_by_text(text='每隔30分钟录制一段')
+        if self.wait_until_text(text='已开启直播录制'):
+            logger.info('直播录制开启成功')
+        else:
+            logger.error('未检测到录制开启提示')
+            assert 0
+
+    def stop_record(self):
+        """停止直播录制"""
+        file_count = self.get_camera_file_count()
+        self.click_by_text(text='停止录制')
+        cur_time = time.time()
+        while time.time() - cur_time < 30:
+            time.sleep(5)
+            if self.get_camera_file_count() - file_count == 1:
+                logger.info('检测到文件新增，录制成功')
+                return True
+            else:
+                logger.info('未检测到文件新增，五秒后再次检测')
+                continue
+        else:
+            logger.error('检测超时')
+            assert 0
+
+    @staticmethod
+    def upload_by_ftp(host, user, pwd, file):
+        upload_file = os.path.join(parse.main_path, 'statics', 'upload_file', file)
+        port = 0
+        if ':' in host:
+            host_list = host.split(':')
+            host, port = host_list[0], int(host_list[1])
+        f = ftplib.FTP()
+        f.encoding = 'GB18030'
+        f.connect(host, port)
+        f.login(user, pwd)
+
+        logger.info('FTP登录成功')
+        f.dir()
+        logger.info(f'当前目录：{f.pwd()}')
+        upload_file = open(upload_file, 'rb')
+        logger.info(f.storbinary(f"STOR {file}", upload_file))
+        f.quit()
+        logger.info('FTP服务器已断开')
+        return True
+
+    def get_my_project_list_status(self):
+        """获取我的项目列表状态（显示/隐藏）"""
+        ele = self.find_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../span[1]')
+        if 'isRotate' in ele.get_attribute('class'):
+            logger.info('当前项目列表为隐藏状态')
+            return False
+        else:
+            logger.info('当前项目列表为显示状态')
+            return True
+
+    def show_my_project_list(self):
+        """显示我的拍摄项目列表"""
+        if not self.get_my_project_list_status():
+            self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../span[1]', '显示项目列表')
+            if not self.get_my_project_list_status():
+                assert 0
+
+    def hide_my_project_list(self):
+        """隐藏我的拍摄项目列表"""
+        if self.get_my_project_list_status():
+            self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../span[1]', '隐藏项目列表')
+            if self.get_my_project_list_status():
+                assert 0
+
+    def get_order_view_status(self):
+        """获取排序弹窗状态"""
+        ele = self.find_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div/div[2]')
+        if 'height1' in ele.get_attribute('class'):
+            logger.info('当前排序窗口显示状态')
+            return True
+        else:
+            logger.info('当前排序窗口为隐藏状态')
+            return False
+
+    def show_order_my_project_view(self):
+        """显示我的拍摄排序弹窗"""
+        if not self.get_order_view_status():
+            self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div', '显示排序弹窗')
+            if not self.get_order_view_status():
+                assert 0
+
+    def hide_order_my_project_view(self):
+        """隐藏我的拍摄排序弹窗"""
+        if self.get_order_view_status():
+            self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div', '隐藏排序弹窗')
+            if self.get_order_view_status():
+                assert 0
+
+    def order_my_project_by_time_old_2_new(self):
+        """我的拍摄排序-按创建时间由旧到新"""
+        project_list = self.get_my_project_list()
+        project_list.reverse()  # 列表倒序
+        self.show_order_my_project_view()
+        self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "添加时间")]', '添加时间')
+        self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "由旧到新")]', '由旧到新')
+        self.hide_order_my_project_view()
+        if self.get_my_project_list() == project_list:
+            logger.info('按添加时间由旧到新排序成功')
+        else:
+            logger.error('按添加时间由旧到新排序失败')
+            assert 0
+
+    def order_my_project_by_name(self):
+        """我的拍摄排序-按文件名正序"""
+        project_list = self.get_my_project_list()
+        project_list = self.order_by_filename(project_list)
+        logger.info(f'期望项目列表排序为：{project_list}')
+        self.show_order_my_project_view()
+        self.click_by_condition('xpath',
+                                '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "排序")]/../li[contains(text(), "文件名")]',
+                                '文件名')
+        self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "文件名正序")]', '正序')
+        self.hide_order_my_project_view()
+        if self.get_my_project_list() == project_list:
+            logger.info('按文件名正序排序成功')
+        else:
+            logger.error('按文件名正序排序失败')
+            assert 0
+
+    def order_my_project_by_name_reverse(self):
+        """我的拍摄排序-按文件名倒序"""
+        project_list = self.get_my_project_list()
+        project_list = self.order_by_filename_reverse(project_list)
+        logger.info(f'期望项目列表排序为：{project_list}')
+        self.show_order_my_project_view()
+        self.click_by_condition('xpath',
+                                '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "排序")]/../li[contains(text(), "文件名")]',
+                                '文件名')
+        self.click_by_condition('xpath', '//span[contains(text(), "我的拍摄")]/../div//*[contains(text(), "文件名倒序")]', '倒序')
+        self.hide_order_my_project_view()
+        if self.get_my_project_list() == project_list:
+            logger.info('按文件名倒序排序成功')
+        else:
+            logger.error('按文件名倒序排序失败')
+            assert 0
+
+    def batches_rename(self):
+        """批量重命名"""
+        self.click_by_text(text='重命名')
+        name_input = self.find_by_condition('xpath', '//span[contains(text(), "名称前缀")]/../input')
+        num_input = self.find_by_condition('xpath', '//span[contains(text(), "起始序号")]/../input')
+        name = name_input.get_attribute('value').strip()
+        self.click_by_text(text='增加序列')
+        if name_input.get_attribute('value').strip() == f'{name}%nnn':
+            logger.info('增加序列成功')
+        else:
+            logger.error('增加序列失败')
+            assert 0
+        logger.info('设置名称前缀为：test%n')
+        name_input.clear()
+        name_input.send_keys('test%n')
+        logger.info('设置起始序号为：6')
+        num_input.clear()
+        num_input.send_keys('6')
+        self.click_by_condition('class', 'confirm', '重命名')
+        file_name_ele = self.finds_by_condition('class', 'fileName')[1:]  # 排除直播
+        file_name_list = [self.get_text(e) for e in file_name_ele]
+        logger.info(f'文件列表为：{file_name_list}')
+        if 'test6' in file_name_list[0]:
+            logger.info('检测到文件名起始序号为6')
+        else:
+            logger.error('检测到文件名起始序号不为6')
+            assert 0
+        error_file = [f for f in file_name_list if 'test' not in f]
+        if error_file:
+            logger.error(f'检测到异常文件名：{error_file}')
+            assert 0
+        else:
+            logger.info('检测文件名修改成功')
+
+    def check_buy_plan_link(self):
+        """检测会员方案跳转"""
+        if self.is_company():
+            pytest.skip('企业版无此功能')
+        self.click_by_text(text='会员方案')
+        cur_url = self.get_current_url()
+        logger.info(f'当前页面链接为：{cur_url}')
+        if 'spaceBuy' in cur_url:
+            logger.info('跳转到会员方案页成功')
+        else:
+            logger.error('跳转到会员方案页失败')
+            assert 0
+
+    def check_convert(self):
+        """检测兑换"""
+        if self.is_company():
+            pytest.skip('企业版无此功能')
+        self.click_by_text(text='兑换')
+        if self.check_text(text='输入兑换码', fuzzy=False):
+            logger.info('检测到兑换弹窗打开成功')
+        else:
+            logger.error('未检测到兑换弹窗')
+            assert 0
+        self.click_by_text(text='立即兑换')
+        if self.wait_until_text(text='兑换码无效'):
+            logger.info('检测兑换功能成功')
+        else:
+            logger.error('检测兑换功能异常')
+            assert 0
+
+    def set_join_verify(self, open=True):
+        """设置项目审核"""
+        check_ele = self.find_by_condition('xpath',
+                                           '//div[contains(text(), "加入项目需审核")]/../div[@class="switch-wrap"]/div')
+        if open:
+            if check_ele.get_attribute('aria-checked'):
+                logger.info('审核开关为打开状态')
+                self.close_project_setting()
+            else:
+                logger.info('审核开关未打开，点击打开')
+                check_ele.click()
+                time.sleep(2)
+                self.click_by_text('div', '保存设置')
+                self.wait_until_text(text='保存成功')
+        else:
+            if check_ele.get_attribute('aria-checked'):
+                logger.info('审核开关为打开状态，点击关闭')
+                check_ele.click()
+                time.sleep(2)
+                self.click_by_text('div', '保存设置')
+                self.wait_until_text(text='保存成功')
+            else:
+                logger.info('审核开关为未打开状态')
+                self.close_project_setting()
+
+    def check_join_verify(self):
+        """检测项目审核"""
+        self.click_by_text(text='加入拍摄项目')
+        if self.check_text(text='加入申请已发送'):
+            logger.info('已发送加入申请')
+        else:
+            logger.error('发送加入申请失败')
+            assert 0
+
+    def allow_join_project(self, user=None):
+        """允许加入项目"""
+        self.click_by_condition('xpath',
+                                f'//*[text()="{user}"]/../../div[@class="memberJoinTime"]/span[text()="通过验证"]',
+                                '通过验证')
+        if self.wait_until_text(text='成员申请已通过'):
+            logger.info('通过验证成功')
+        else:
+            logger.error('通过验证异常')
+            assert 0

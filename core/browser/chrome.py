@@ -35,4 +35,7 @@ class Chrome(object):
             setattr(Chrome, name, cl(self.driver))
 
 
-Chrome = Chrome()
+if parse.chrome_run.lower() == 'true':
+    Chrome = Chrome()
+else:
+    Chrome = None

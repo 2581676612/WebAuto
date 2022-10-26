@@ -55,7 +55,7 @@ def pytest_runtest_makereport(item):
 
 def _chrome_screenshot():
     '''截图保存为base64'''
-    if Chrome.Control.driver_status:
+    if Chrome and Chrome.Control.driver_status:
         return Chrome.driver.get_screenshot_as_base64()
     else:
         return False

@@ -1,5 +1,3 @@
-import importlib.machinery
-import inspect
 import os
 import screeninfo
 
@@ -11,8 +9,7 @@ from core.base.common import Common
 
 class FireFox(object):
     def __init__(self):
-        driver_path = os.path.join(parse.main_path, 'statics', 'tools',
-                                   parse.firefox_driver)
+        driver_path = os.path.join(parse.main_path, 'statics', 'tools', parse.firefox_driver)
         option = webdriver.FirefoxOptions()
         # option.add_argument('--headless')  # 不打开可视化界面
         option.add_argument('disable-infobars')  # 取消浏览器提示信息

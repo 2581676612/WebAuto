@@ -1,8 +1,7 @@
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCaseFile
 
 
-class TestCase(BaseCaseFile):
+class TestCase():
     def test_file_detail_view(self):
         """图片文件内页-进入文件详情页"""
         Chrome.Project.enter_file_detail_view(file_type='img')
@@ -47,8 +46,8 @@ class TestCase(BaseCaseFile):
 
     def test_add_discussion(self):
         """图片文件内页-审评意见"""
-        Chrome.Project.add_discussion()
-        Chrome.Project.check_discussion()
+        Chrome.Project.add_discussion(info='这是一条评论', file='img.jpg')
+        Chrome.Project.check_discussion(info='这是一条评论', file=True)
 
     @staticmethod
     def teardown_class():

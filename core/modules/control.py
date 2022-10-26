@@ -11,6 +11,8 @@ import selenium.common.exceptions as ex
 import core.base.parse as parse
 
 from core.base.logger import logger
+from itertools import chain
+from pypinyin import pinyin, Style
 from selenium.webdriver.common.action_chains import ActionChains
 from selenium.webdriver.common.by import By
 from selenium.webdriver.support.ui import WebDriverWait
@@ -24,10 +26,16 @@ class Control(object):
     def __init__(self, driver):
         self.driver = driver
         self.driver_status = True
-        if parse.web_type == 'None':
-            self.url = 'https://yueliu.cn/v20/#/'
+        if parse.is_company.lower() == 'true':
+            if parse.web_type == 'None':
+                self.url = 'https://v.yueliu.club/v20/#/'
+            else:
+                self.url = f'https://{parse.web_type}.yueliu.cloud/v20/#/'
         else:
-            self.url = f'https://{parse.web_type}.yueliu.cloud/v20/#/'
+            if parse.web_type == 'None':
+                self.url = 'https://yueliu.cn/v20/#/'
+            else:
+                self.url = f'https://{parse.web_type}.yueliu.cloud/v20/#/'
         self.img_path = os.path.join(parse.main_path, 'statics', 'img_demo')
         self.download_path = os.path.join(parse.main_path, 'statics', 'downloads')
         if not os.path.exists(self.download_path):
@@ -52,7 +60,7 @@ class Control(object):
         time.sleep(3)
 
     def click_by_img(self, img='', info=''):
-        """根据图片点击，图片模版在code-file下"""
+        """根据图片点击，图片模版在code-statics下"""
         cur_x, cur_y = pyautogui.position()
         img_pos = ImgDeal.find_by_img(os.path.join(self.img_path, img), info)
         if img_pos:
@@ -60,22 +68,18 @@ class Control(object):
             pyautogui.moveTo(img_pos[0], img_pos[1])
             logger.info(f'点击{info}')
             pyautogui.click()
-            time.sleep(2)
+            # time.sleep(2)
             pyautogui.moveTo(cur_x, cur_y)
             return True
         return False
 
     def check_img(self, img='', info=''):
-        """图片检测，图片模版在code-file下"""
+        """图片检测，图片模版在code-static下"""
         if info:
             logger.info(f'检测图片--{info} 是否存在')
-        if ImgDeal.find_by_img(os.path.join(self.img_path, img), info):
-            logger.info('检测到图片')
-            return True
-        logger.error('未检测到图片')
-        return False
+        return ImgDeal.find_by_img(os.path.join(self.img_path, img), info)
 
-    def click_by_position(self, x, y, left_click=True):  # 此方法不生效，暂不使用
+    def click_by_position(self, x, y, left_click=True):
         """根据坐标点击"""
         if left_click:
             ActionChains(self.driver).move_by_offset(x, y).click().perform()
@@ -108,7 +112,7 @@ class Control(object):
         except ex.NoAlertPresentException as e:
             return False
 
-    def _hover(self, ele=''):  # ActionChains模块不生效，无法使用
+    def _hover(self, ele=''):
         """控制鼠标悬停"""
         ActionChains(self.driver).move_to_element(ele).perform()
 
@@ -313,7 +317,6 @@ class Control(object):
             self.click_by_condition('xpath', f'//{ele_type}[text()="{text}"]', text, timeout)
         time.sleep(1)
 
-
     def check_condition(self, condition, obj):
         """检测元素是否存在"""
         try:
@@ -327,6 +330,11 @@ class Control(object):
     def choose_file_to_upload(self, file='', select_all=False):
         """选择文件上传"""
         # 请选择test_file目录下的测试文件
+        # if ImgDeal.find_by_img(img=os.path.join(self.img_path, 'dir_dialog_flag')):
+        #     logger.info('检测到文件夹弹窗已打开')
+        # else:
+        #     logger.error('未检测到文件夹弹窗')
+        #     return False
         file_path = os.path.join(parse.main_path, 'statics', 'upload_file')
         file = os.path.join(file_path, file)
         logger.info(f'上传文件为：{file}')
@@ -337,25 +345,32 @@ class Control(object):
             # 打开文件搜索框
             logger.info('打开搜索框')
             self.click_keyboard('shift', 'command', 'g')  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
-            time.sleep(2)
+            time.sleep(1)
             # 粘贴文件路径
             logger.info('粘贴文件路径')
             self.click_keyboard('command', 'v')
-            time.sleep(2)
+            time.sleep(1)
             # 回车确定
-
-            pyautogui.press('Return')
+            self.click_keyboard('enter')
+            # pyautogui.press('enter')
             time.sleep(1)  # 必须停留一下，从粘贴到连续键入两个回车键有问题
+            # if ImgDeal.find_by_img(img=os.path.join(self.img_path, 'dir_dialog_flag')):
+            #     logger.info('仍检测到文件夹弹窗，正常运行中(此处偶发回车后弹窗崩溃，新增对话框检测点)')
+            # else:
+            #     logger.error('未检测到文件夹弹窗')
+            #     return False
             if select_all:
                 logger.info('全选')
                 self.click_keyboard('command', 'a')
                 time.sleep(1)
-            pyautogui.press('Return')
+            self.click_keyboard('enter')
+            # pyautogui.press('enter')
         elif 'windows' in platform_str:
             self.click_keyboard('ctrl', 'v')
             time.sleep(1)
             pyautogui.press('enter')
         time.sleep(3)
+        return True
 
     def login_by_password(self, usr=parse.usr_1, pwd=parse.pwd_1):
         """密码登录"""
@@ -372,13 +387,15 @@ class Control(object):
         time.sleep(1)
         self.click_by_condition('class', 'login-btn-container', '登录')
         time.sleep(5)
-        if self.find_by_condition('class', 'avatar-wrapper'):
+        if self.check_condition('class', 'avatar-wrapper'):
             logger.info('登录成功！')
         else:
             logger.error('登录失败！')
-            pytest.exit('登录失败，测试停止！')
+            pytest.exit('登录失败，测试停止！', returncode=2)
         self.close_update_info()
         self.close_message()
+        if self.is_team():
+            self.switch_to_team_version()
 
     @staticmethod
     def create_user():
@@ -426,21 +443,19 @@ class Control(object):
     def login_out(self):
         """退出登录"""
         self.click_by_condition_index('class', 'avatar-wrapper', 1, '用户头像')
-        self.click_by_condition('xpath', '//div[contains(text(), "退出登录")]', '退出登录')
+        self.click_by_text(text='个人中心')
+        self.click_by_text(text='退出登录')
         self.click_by_condition('xpath', '//div[text()="退出 "]', '退出', 3)
 
     def close_update_info(self):
         """关闭更新弹窗"""
-        if self.check_condition('class', 'footer') and not self.check_condition('class', 'close-box'):
-            close_ele = self.finds_by_condition('class', 'footer')
-            if close_ele:
-                logger.info('点击关闭更新提示')
-                close_ele[0].click()
-                time.sleep(2)
+        close_xpath = '//div[@class="sys-box"]/../div[@class="footer"]'
+        if self.check_condition('xpath', close_xpath):
+            self.click_by_condition('xpath', close_xpath, '关闭更新提示')
 
     def close_message(self):
         """关闭通知"""
-        while self.check_condition('class', 'close-box'):
+        while self.check_condition('class', 'close-box') and self.find_by_condition('class', 'close-box').is_displayed():
             logger.info('点击关闭消息提示')
             self.finds_by_condition('class', 'close-box')[0].click()
             time.sleep(3)
@@ -497,6 +512,11 @@ class Control(object):
             if time.time() - start_time < 1800:
                 status_ele = self.find_by_condition('class', 'total-file-info')
                 status = status_ele.get_attribute('innerText').strip()
+                if '失败' in status:
+                    logger.error('检测到文件上传失败！')
+                    time.sleep(5)
+                    self.close_upload_page()
+                    assert 0
                 if '上传成功' in status:
                     logger.info('文件上传完成！')
                     time.sleep(5)
@@ -509,6 +529,26 @@ class Control(object):
             else:
                 logger.error('文件上传超时！')
                 self.close_upload_page()
+                assert 0
+
+    def wait_receive_upload(self):
+        """等待收集文件上传"""
+        success = False
+        start_time = time.time()
+        # 设置文件上传最多三十分钟
+        while not success:
+            if time.time() - start_time < 1800:
+                status_ele = self.find_by_condition('class', 'total-file-info')
+                status = status_ele.get_attribute('innerText').strip()
+                if '上传成功' in status:
+                    logger.info('文件上传完成！')
+                    time.sleep(5)
+                    success = True
+                else:
+                    logger.info(status)
+                    time.sleep(5)
+            else:
+                logger.error('文件上传超时！')
                 assert 0
 
     @staticmethod
@@ -620,3 +660,74 @@ class Control(object):
         self.switch_to_another_page()
         self.driver.close()
         self.switch_to_main_page()
+
+    @staticmethod
+    def wait(timeout=5):
+        """等待"""
+        time.sleep(timeout)
+
+    def get_current_url(self):
+        """获取当前url"""
+        return self.driver.current_url
+
+    def get_current_title(self):
+        """获取当前标签页title"""
+        return self.driver.title
+
+    def get_dir_file_count(self):
+        """获取文件夹文件数量"""
+        if self.check_text(text='文件夹信息'):
+            return self.get_text(self.find_by_condition('xpath', '//span[text()=" 文件数量 "]/../span[2]'))
+        else:
+            logger.error('选择的文件不是文件夹')
+            assert 0
+
+    @staticmethod
+    def is_company():
+        if parse.is_company.lower() == 'true':
+            return True
+        return False
+
+    @staticmethod
+    def is_team():
+        if parse.is_team.lower() == 'true':
+            return True
+        return False
+
+    def switch_to_team_version(self):
+        """切换至团队版"""
+        self.click_by_condition_index('class', 'avatar-wrapper', 1, '用户头像')
+        self.click_by_condition('xpath', '//div[@class="info-wrap"]/div/p/img', '团队版')
+        logger.info('等待切换版本')
+        cur_time = time.time()
+        while time.time() - cur_time < 30:
+            time.sleep(5)
+            if self.check_condition('class', 'loadingMask'):
+                logger.info('切换中。。。')
+            else:
+                logger.info('切换完成')
+                break
+        else:
+            logger.error('切换超时')
+            pytest.exit('切换团队版失败')
+
+    @staticmethod
+    def order_by_filename(filename_list):
+        """根据文件名排序"""
+        num_list = [e for e in filename_list if e[0].isdigit()]
+        str_list = [e for e in filename_list if e[0].isascii() and not e[0].isdigit()]
+        word_list = [e for e in filename_list if not e[0].isascii()]
+        str_list.sort()
+        num_list.sort()
+        word_list.sort(key=lambda x: ''.join(chain.from_iterable(pinyin(x, style=Style.TONE3))))
+        return num_list + word_list + str_list
+
+    def order_by_filename_reverse(self, filename_list):
+        """文件名倒序排序"""
+        res_list = self.order_by_filename(filename_list)
+        res_list.reverse()
+        return res_list
+
+    def close_dialog(self):
+        """关闭机位设置"""
+        self.click_by_condition('class', 'iconquxiao_quxiao', '关闭弹窗')
