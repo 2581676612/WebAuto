@@ -72,12 +72,12 @@ class Project(Control):
             else:
                 logger.info('防录屏开关未打开，点击打开')
                 fangluping_ele.click()
-                self.wait_until_text(text='保存项目成功')
+                self.wait_until_text(text='操作成功')
         else:
             if fangluping_ele.get_attribute('aria-checked'):
                 logger.info('防录屏开关为打开状态，点击关闭')
                 fangluping_ele.click()
-                self.wait_until_text(text='保存项目成功')
+                self.wait_until_text(text='操作成功')
             else:
                 logger.info('防录屏开关为未打开状态')
         time.sleep(2)
@@ -340,7 +340,7 @@ class Project(Control):
         """关闭邀请对话框"""
         self.click_by_condition_index('xpath', '//div[@class="dialog-header-content"]/i', -1, '关闭邀请界面')
 
-    def invite_member(self, usr_name=parse.usr_2_name, super=True, company=True):
+    def invite_member(self, usr_name=None, super=True, company=True):
         """邀请成员
         usr_name--企业邀请，根据用户名点击邀请
         super --True 管理员 False 成员
@@ -758,6 +758,7 @@ class Project(Control):
             assert 0
         self.click_by_condition('class', 'tolink', '打开链接')
         self.close_another_page()
+        self.click_keyboard('esc')
         logger.info('打开链接成功')
         time.sleep(3)
 
@@ -778,9 +779,9 @@ class Project(Control):
         self.select_all_file()  # 选中所有文件
         try:
             self.click_by_condition('class', 'moreOpt')
-            self.click_by_condition_index('class', 'iconfuzhi_fuzhi', -1, '复制到')
+            self.click_by_condition_index('class', 'iconfuzhi_fuzhi', -1, '复制到', 5)
         except:
-            self.click_by_condition('class', 'iconfuzhi_fuzhi', '复制到')  # 点击复制到
+            self.click_by_condition('class', 'iconfuzhi_fuzhi', '复制到', 5)  # 点击复制到
         self.click_by_condition_index('class', 'tab-item', 0, '项目')  # 点击项目
         self.click_by_condition_index('xpath', f'//div[contains(text(), "{to_project}")]', -1, to_project)  # 点击复制到项目
         self.click_by_text('div', '确定', timeout=2)  # 点击确定
@@ -826,20 +827,21 @@ class Project(Control):
             logger.error('被移动项目和测试项目文件数不一致，移动失败')
             assert 0
 
-    def download_all_files(self):
+    def download_all_files(self, vip=None):
         """下载所有文件"""
+        is_zip = False if vip == 0 else True
         self.select_all_file()  # 选中所有文件
         try:
             self.click_by_condition('class', 'moreOpt')
             self.click_by_condition_index('class', 'iconxiazai_xiazai', -1, '批量下载')
         except:
             self.click_by_condition('class', 'iconxiazai_xiazai', '批量下载')  # 点击下载
-        if not self.is_company():
-            self.click_by_text('div', '确认下载')  # 二次确认
+        if vip == 0:
+            self.close_download_tip()
             self.click_by_img('allow_download', '允许下载多个文件')  # 浏览器授权允许下载多个文件
         time.sleep(10)
-        file_count = 1 if self.is_company() else len(self.get_project_file_list())  # 获取当前项目文件数
-        self.check_download(file_count)
+        file_count = 1 if is_zip else len(self.get_project_file_list())  # 获取当前项目文件数
+        self.check_download(file_count, is_zip=is_zip)
 
     def check_in_file_detail_view(self):
         """检测是否进入详情页"""
@@ -1392,14 +1394,56 @@ class Project(Control):
                 logger.error('评论中未检测到上传附件')
                 assert 0
 
-    def share(self):
+    def check_share_version_status(self):
+        """检测分享版本选中状态"""
+        self.click_by_text(ele_type='div', text='审阅分享')
+        self.click_by_text(ele_type='p', text='分享链接', timeout=5)
+        self.click_by_condition('xpath', '//span[contains(text(), "分享链接")]/../../i')
+        e_class = self.find_by_condition('class', 'version-opt').get_attribute('class')
+        self.click_by_condition('xpath', '//div[@class="dialog-header-content"]/i')
+        if 'disabled' in e_class:
+            logger.info('分享版本选择按钮无法选中，验证通过')
+            return True
+        else:
+            logger.error('分享版本按钮非disable状态，验证失败')
+            assert 0
+
+    def choose_share_version(self, version=None):
+        """选择分享版本"""
+        if not version or not self.check_text(text='分享版本'):
+            return True
+        version = version.upper()
+        self.click_by_condition('class', 'version-opt', '选择分享版本')
+        if version == 'ALL':
+            self.click_by_text(ele_type='span', text='全部版本')
+        else:
+            self.click_by_text(ele_type='span', text='单个版本')
+            self.click_by_text(ele_type='span', text=version)
+        self.click_by_condition('xpath', '//span[contains(text(), "选择分享版本")]/../../i')
+        cur_version = self.get_text(self.find_by_condition('xpath', '//div[@class="version-opt"]/span'))
+        logger.info(f'当前分享版本为：{cur_version}')
+        if (version == 'ALL' and cur_version == '全部版本') or version == cur_version:
+            logger.info('版本选择成功！')
+            return True
+        else:
+            logger.error('版本选择异常！')
+            assert 0
+
+    def share(self, version=None, detail_view=False):
         """审阅分享"""
-        self.click_by_text(ele_type='button', text='审阅分享')
+        share_ele = 'div' if detail_view else 'button'
+        self.click_by_text(ele_type=share_ele, text='审阅分享')
         if self.check_text(text='创建审阅分享'):
             logger.info('检测到分享弹窗')
         else:
             logger.error('未检测到分享弹窗')
             assert 0
+        self.choose_share_version(version)
+        ele = self.find_by_condition('xpath', f'//p[text()="允许下载和转存"]/../../span/span/div')
+        if 'is-checked' not in ele.get_attribute('class'):
+            logger.info(f'下载权限未开启，点击开启')
+            ele.click()
+            time.sleep(2)
         self.click_by_text(ele_type='p', text='分享链接', timeout=5)
         if self.check_text(ele_type='span', text='分享链接'):
             logger.info('检测到分享链接')
@@ -1446,6 +1490,8 @@ class Project(Control):
         self.click_by_condition('class', 'download', '下载')
         self.click_by_condition_index('class', 'file-card-wrapper', 0, '选择文件')
         self.click_by_condition('class', 'download', '下载')
+        # if self.check_text(text='确认下载'):
+        #     self.click_by_text(text='确认下载')
         self.click_by_text(ele_type='button', text='取消')
         logger.info('等待10秒下载文件')
         time.sleep(10)
@@ -1553,11 +1599,12 @@ class Project(Control):
                     logger.error('元素点击异常')
                     self.close_project_setting()
                     assert 0
-                if self.wait_until_text(text='保存项目成功'):
+                if self.wait_until_text(text='操作成功'):
                     logger.info(f'{s} 权限配置成功')
                     time.sleep(2)
                 else:
                     logger.error(f'{s} 权限配置异常')
+                    self.close_project_setting()
                     assert 0
             else:
                 logger.info(f'{s} 权限为关闭状态')
@@ -1705,8 +1752,8 @@ class Project(Control):
             self.click_by_condition_index('class', 'iconxiazai_xiazai', -1, '批量下载')
         except:
             self.click_by_condition('class', 'iconxiazai_xiazai', '批量下载')  # 点击下载
-        if not self.is_company():
-            self.click_by_text('div', '确认下载')  # 二次确认
+        # if not self.is_company():
+        #     self.click_by_text('div', '确认下载')  # 二次确认
         time.sleep(10)
         self.check_download(1)
 
@@ -1726,6 +1773,17 @@ class Project(Control):
             logger.error('附件添加失败')
             assert 0
 
+    def check_many_version(self, many=True):
+        """检测多版本图标"""
+        if self.check_condition('xpath', '//div[@class="subscript"]/span[text()="V2"]'):
+            logger.info('检测到多版本图标--v2')
+            if not many:
+                assert 0
+        else:
+            logger.info('未检测到多版本图标--v2')
+            if many:
+                assert 0
+
     def add_version(self, file_type='img', file_name='img.jpg'):
         """添加版本"""
         for i in range(5):
@@ -1735,11 +1793,7 @@ class Project(Control):
             if self.choose_file_to_upload(file_name):
                 break
         self.wait_upload()
-        if self.check_condition('xpath', '//div[@class="subscript"]/span[text()="v2"]'):
-            logger.info('检测到多版本图标--v2')
-        else:
-            logger.error('未检测到多版本图标--v2')
-            assert 0
+        self.check_many_version()
 
     def compare_version(self):
         """版本对比"""

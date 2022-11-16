@@ -70,7 +70,10 @@ class OBS(object):
 
     def open_push_settings(self):
         """打开推流设置"""
-        self.click_by_img('push_setting', '推流设置')
+        try:
+            self.click_by_img('push_setting', '推流设置')
+        except:
+            self.click_by_img('push_setting_1', '推流设置')
 
     def set_push_server(self):
         """设置推流服务器"""

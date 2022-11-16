@@ -1,8 +1,7 @@
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCaseFile
 
 
-class TestCase(BaseCaseFile):
+class TestCase():
     @staticmethod
     def setup_class():
         Chrome.Project.open_project()
@@ -58,7 +57,7 @@ class TestCase(BaseCaseFile):
     def test_file_download(self):
         """文件列表-下载文件"""
         Chrome.Project.open_project('测试-移动')
-        Chrome.Project.download_all_files()
+        Chrome.Project.download_all_files(vip=Chrome.Control.vip)
 
     def test_all_delete(self):
         """文件列表-删除全部文件"""

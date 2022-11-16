@@ -1,11 +1,10 @@
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCase
 
 
-class TestCase(BaseCase):
+class TestCase():
     def test_change_name(self):
         """自定义信息-修改文件名称"""
-        Chrome.Project.choose_test_file()
+        Chrome.Project.choose_test_file('img')
         Chrome.Project.change_file_name_by_info()
 
     def test_change_graded(self):

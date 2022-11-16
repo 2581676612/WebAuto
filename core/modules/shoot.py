@@ -751,7 +751,7 @@ class Shoot(Control):
         name_list = [self.get_text(n) for n in name_ele]
         return name_list
 
-    def check_join_meeting(self, user_name=parse.usr_2_name):
+    def check_join_meeting(self, user_name=None):
         """检测加入会议是否成功"""
         if user_name in self.get_meeting_member_list():
             logger.info('加入会议成功')
@@ -1182,15 +1182,16 @@ class Shoot(Control):
         """取消操作"""
         self.click_by_text(ele_type='div', text='取消')
 
-    def download_files(self):
+    def download_files(self, vip=None):
         """下载文件"""
+        is_zip = False if vip == 0 else True
         self.click_by_condition('xpath', '//div[@class="user-opt-wrap"]/div[contains(text(), "下载")]', '下载')
-        if not self.is_company():
-            self.click_by_text('div', '确认下载')  # 二次确认
+        if vip == 0:
+            self.close_download_tip()
             self.click_by_img('allow_download', '允许下载多个文件')  # 浏览器授权允许下载多个文件
         time.sleep(10)
-        file_count = 1 if self.is_company() else self.get_current_camera_file_count()
-        self.check_download(file_count)
+        file_count = 1 if is_zip else self.get_current_camera_file_count()
+        self.check_download(file_count, is_zip=is_zip)
 
     def copy_files_to_shoot(self):
         """复制文件"""

@@ -1,10 +1,11 @@
+import pytest
+
 from core.browser.chrome import Chrome
 from core.browser.firefox import FireFox
-from core.base.base_case import BaseCase
-from core.base.parse import usr_2_name
 
 
-class TestCase(BaseCase):
+class TestCase():
+    @pytest.mark.P0
     def test_fangluping_open(self):
         """拍摄项目设置-防录屏权限开启测试"""
         Chrome.Shoot.open_project_menu()
@@ -13,6 +14,7 @@ class TestCase(BaseCase):
         Chrome.Shoot.open_camera_detail()
         Chrome.Shoot.check_fangluping(True)
 
+    @pytest.mark.P0
     def test_fangluping_close(self):
         """拍摄项目设置-防录屏权限关闭测试"""
         Chrome.Shoot.open_project_menu()
@@ -21,6 +23,7 @@ class TestCase(BaseCase):
         Chrome.Shoot.open_camera_detail()
         Chrome.Shoot.check_fangluping(False)
 
+    @pytest.mark.P0
     def test_read_file_close(self):
         """拍摄项目设置-关闭成员查看文件权限"""
         Chrome.Shoot.open_project_menu()
@@ -28,7 +31,7 @@ class TestCase(BaseCase):
         Chrome.Shoot.set_role_read_permission(role='制作者', read=False)
         Chrome.Shoot.open_project_menu()
         Chrome.Shoot.open_project_settings('成员管理')
-        Chrome.Shoot.change_role(member=usr_2_name, change_role='制作者')
+        Chrome.Shoot.change_role(member=FireFox.Control.user_name, change_role='制作者')
         FireFox.Shoot.refresh()
         FireFox.Shoot.open_join_project()
         FireFox.Shoot.check_close_read_permission_by_room()

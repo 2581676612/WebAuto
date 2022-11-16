@@ -44,6 +44,9 @@ class Control(object):
         self.first_enter_shoot = True
         self.first_enter_project = True
         self.cur_handle = self.driver.current_window_handle  # 获取当前窗口
+        self.screen_width, self.screen_height = pyautogui.size()
+        self.user_name = None
+        self.vip = None
 
     def quit(self):
         # 关闭Chromedriver
@@ -265,6 +268,8 @@ class Control(object):
         """刷新页面"""
         self.driver.refresh()
         time.sleep(timeout)
+        if self.check_condition('class', 'tips'):
+            self.click_by_condition('class', 'tips', '提示弹窗')
 
     def check_button(self, text=''):
         """检测按钮是否存在"""
@@ -342,6 +347,11 @@ class Control(object):
         platform_str = platform.system().lower()  # 获取操作系统
         logger.info(f'操作系统为：{platform_str}')
         if platform_str in ['mac', 'darwin']:
+            # 聚集弹窗上
+            center_width, center_height = int(self.screen_width // 2), int(self.screen_height // 2)
+            pyautogui.moveTo(center_width, center_height)
+            pyautogui.click()
+            time.sleep(1)
             # 打开文件搜索框
             logger.info('打开搜索框')
             self.click_keyboard('shift', 'command', 'g')  # 打开mac的搜索框，可以直接输入文件全路径定位到具体文件
@@ -396,6 +406,26 @@ class Control(object):
         self.close_message()
         if self.is_team():
             self.switch_to_team_version()
+        self.get_user_info()
+        logger.info(f'当前登录用户名为：{self.user_name}；会员等级为：{self.vip}')
+
+    def get_user_info(self):
+        """获取所需用户信息"""
+        self.open_page(self.url + 'personal/spaceBuy')
+        self.user_name = self.get_text(self.find_by_condition('class', "user-name"))
+        cur_vip_tips = self.get_text(self.find_by_condition('class', "curretn-vip-tips "))
+        logger.info(cur_vip_tips)
+        if '免费会员' in cur_vip_tips:
+            self.vip = 0
+        elif '初级会员' in cur_vip_tips:
+            self.vip = 1
+        elif '中级会员' in cur_vip_tips:
+            self.vip = 2
+        elif '高级会员' in cur_vip_tips:
+            self.vip = 3
+        else:
+            logger.error('获取当前会员方案异常')
+            assert 0
 
     @staticmethod
     def create_user():
@@ -452,10 +482,13 @@ class Control(object):
         close_xpath = '//div[@class="sys-box"]/../div[@class="footer"]'
         if self.check_condition('xpath', close_xpath):
             self.click_by_condition('xpath', close_xpath, '关闭更新提示')
+        if self.check_condition('class', 'iconcancel'):
+            self.click_by_condition('class', 'iconcancel', '关闭弹窗消息')
 
     def close_message(self):
         """关闭通知"""
-        while self.check_condition('class', 'close-box') and self.find_by_condition('class', 'close-box').is_displayed():
+        while self.check_condition('class', 'close-box') and self.find_by_condition('class',
+                                                                                    'close-box').is_displayed():
             logger.info('点击关闭消息提示')
             self.finds_by_condition('class', 'close-box')[0].click()
             time.sleep(3)
@@ -493,8 +526,9 @@ class Control(object):
     def clear_upload_record(self):
         """清空上传记录"""
         while self.is_file_upload():
-            self.click_by_condition('class', 'el-dropdown', '更多设置')
-            self.click_by_condition('class', 'el-dropdown-menu__item', '清空已完成记录')
+            self._hover(self.find_by_condition('class', 'iconempty'))
+            self.click_by_text(text='全部清空')
+            self.click_by_text(text='清空 ', fuzzy=False)
         else:
             logger.info('清除成功')
 
@@ -510,7 +544,7 @@ class Control(object):
         # 设置文件上传最多三十分钟
         while not success:
             if time.time() - start_time < 1800:
-                status_ele = self.find_by_condition('class', 'total-file-info')
+                status_ele = self.find_by_condition('class', 'upload-status__text')
                 status = status_ele.get_attribute('innerText').strip()
                 if '失败' in status:
                     logger.error('检测到文件上传失败！')
@@ -607,12 +641,34 @@ class Control(object):
         """获取元素样式"""
         return ele.get_attribute('style').strip()
 
-    def check_download(self, file_count):
-        download_count = len(os.listdir(self.download_path))  # 通过检测下载文件夹文件数判断下载是否成功
-        logger.info(f'下载文件数量为：{download_count}')
+    def close_download_tip(self):
+        """关闭下载提示弹窗"""
+        if self.check_condition('class', 'downloadTipWrap'):
+            logger.info('检测到下载提示弹窗')
+            self.click_by_condition('xpath', '//div[@class="noRemindWrap"]/img', '不再提示', 1)
+            self.click_by_condition('class', 'directBtn', '直接下载', 1)
+
+    def check_download(self, file_count, is_zip=False):
+        download_file_list = os.listdir(self.download_path)
+        if '.DS_Store' in download_file_list:
+            download_file_list.remove('.DS_Store')
+        download_count = len(download_file_list)  # 通过检测下载文件夹文件数判断下载是否成功
+        logger.info(f'下载文件为：{download_file_list}')
+        if is_zip:
+            if download_count != 1:
+                logger.info('下载文件数量不为1，下载异常')
+                shutil.rmtree(self.download_path)  # 清空下载文件夹
+                os.mkdir(self.download_path)
+                assert 0
+            from core.base.common import Common
+            Common.unzip_file(zip_src=os.path.join(self.download_path, download_file_list[0]),
+                              dst_dir=os.path.join(self.download_path))
+            cur_file = os.listdir(os.path.join(self.download_path, download_file_list[0][:-4]))
+            download_count = len(cur_file)
+            logger.info(f'解压后文件为：{cur_file}')
         shutil.rmtree(self.download_path)  # 清空下载文件夹
         os.mkdir(self.download_path)
-        if download_count == file_count:
+        if file_count == download_count:
             logger.info('检测到下载文件夹文件数相同，下载成功')
         else:
             logger.error('下载文件夹和测试项目文件数不一致，下载失败')
@@ -714,11 +770,12 @@ class Control(object):
     @staticmethod
     def order_by_filename(filename_list):
         """根据文件名排序"""
-        num_list = [e for e in filename_list if e[0].isdigit()]
+        num_list = [(e, re.findall(r'(\d+\.?\d*)', e)[0]) for e in filename_list if e[0].isdigit()]
         str_list = [e for e in filename_list if e[0].isascii() and not e[0].isdigit()]
         word_list = [e for e in filename_list if not e[0].isascii()]
         str_list.sort()
-        num_list.sort()
+        num_list.sort(key=lambda x: eval(x[1]))
+        num_list = [e[0] for e in num_list]
         word_list.sort(key=lambda x: ''.join(chain.from_iterable(pinyin(x, style=Style.TONE3))))
         return num_list + word_list + str_list
 
@@ -731,3 +788,8 @@ class Control(object):
     def close_dialog(self):
         """关闭机位设置"""
         self.click_by_condition('class', 'iconquxiao_quxiao', '关闭弹窗')
+
+    def close_guide(self):
+        """关闭新手引导"""
+        if self.check_text(text='我知道了', fuzzy=False):
+            self.click_by_text(text='我知道了', fuzzy=False)

@@ -1,8 +1,10 @@
+import pytest
+
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCase
 
 
-class TestCase(BaseCase):
+class TestCase():
+    @pytest.mark.P0
     def test_create(self):
         """拍摄项目设置-创建项目"""
         Chrome.Shoot.create_project()

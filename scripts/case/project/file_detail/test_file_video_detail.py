@@ -1,8 +1,7 @@
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCaseFile
 
 
-class TestCase(BaseCaseFile):
+class TestCase():
     def test_video_detail_view(self):
         """视频文件内页-进入详情页"""
         Chrome.Project.enter_file_detail_view(file_type='video')

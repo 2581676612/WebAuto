@@ -1,10 +1,8 @@
 from core.browser.chrome import Chrome
 from core.browser.firefox import FireFox
-from core.base.base_case import BaseCase
-from core.base.parse import usr_2_name
 
 
-class TestCase(BaseCase):
+class TestCase():
     def test_fangluping_open(self):
         """项目设置-防录屏权限开启"""
         Chrome.Project.open_project_menu()
@@ -27,9 +25,9 @@ class TestCase(BaseCase):
                                                 '删除/恢复文件', role='成员')
         Chrome.Project.open_project_menu()
         Chrome.Project.open_project_settings('成员管理')
-        Chrome.Project.change_role(usr_2_name, '成员')
+        Chrome.Project.change_role(FireFox.Control.user_name, '成员')
         FireFox.Project.open_project()
-        FireFox.Project.choose_test_file()
+        FireFox.Project.choose_test_file('img')
         FireFox.Project.check_change_info_permission_close()
         FireFox.Project.check_invite_permission_close()
         FireFox.Project.check_download_permission_close()

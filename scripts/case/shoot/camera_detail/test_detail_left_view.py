@@ -1,3 +1,5 @@
+import pytest
+
 from core.browser.chrome import Chrome
 from core.base.parse import copy_camera
 
@@ -10,15 +12,24 @@ class TestCase():
         Chrome.Shoot.create_camera(copy_camera)
         Chrome.Shoot.open_camera_detail()
 
+    @pytest.mark.P0
     def test_open_left_view(self):
         """机位详情页-打开左侧侧边栏"""
         Chrome.Shoot.open_left_view()
 
+    @pytest.mark.P0
+    def test_rename(self):
+        """机位详情页-批量操作-重命名"""
+        Chrome.Shoot.select_all_files()
+        Chrome.Shoot.batches_rename()
+
+    @pytest.mark.P0
     def test_download(self):
         """机位详情页-批量操作-全选下载"""
         Chrome.Shoot.select_all_files()
-        Chrome.Shoot.download_files()
+        Chrome.Shoot.download_files(vip=Chrome.Control.vip)
 
+    @pytest.mark.P0
     def test_copy_to_shoot(self):
         """机位详情页-批量操作-复制到拍摄"""
         Chrome.Shoot.select_all_files()
@@ -27,11 +38,13 @@ class TestCase():
         Chrome.Shoot.open_left_view()
         Chrome.Shoot.check_copy_to_shoot()
 
+    @pytest.mark.P0
     def test_copy_to_media(self):
         """机位详情页-批量操作-复制到资源"""
         Chrome.Shoot.select_all_files()
         Chrome.Shoot.copy_to_media()
 
+    @pytest.mark.P0
     def test_delete_files(self):
         """机位详情页-批量操作-删除"""
         Chrome.Shoot.select_camera(copy_camera)

@@ -1,10 +1,9 @@
 import time
 
 from core.browser.chrome import Chrome
-from core.base.base_case import BaseCaseFile
 
 
-class TestCase(BaseCaseFile):
+class TestCase():
     @staticmethod
     def setup_class():
         Chrome.Project.open_project()
@@ -16,6 +15,7 @@ class TestCase(BaseCaseFile):
         Chrome.Control.open_another_page(share_link)
         Chrome.Control.switch_to_another_page()
         time.sleep(5)
+        Chrome.Control.close_guide()
 
     def test_collect(self):
         """分享-收藏"""
@@ -42,6 +42,7 @@ class TestCase(BaseCaseFile):
         Chrome.Project.check_share_download_permission(download=False)
         Chrome.Project.check_share_move_permission(move=False)
         Chrome.Project.enter_share_file_detail()
+        Chrome.Control.close_guide()
         Chrome.Project.check_share_comment_permission(comment=False)
 
     @staticmethod

@@ -5,6 +5,7 @@ import time
 import pyautogui
 import importlib.machinery
 import inspect
+import zipfile
 
 from core.base.logger import logger
 from core.base.cv import ImgDeal
@@ -60,3 +61,13 @@ class Common(object):
         pos = self.get_img_position(img, info)
         self.click_by_position(pos)
         time.sleep(timeout)
+
+    @staticmethod
+    def unzip_file(zip_src, dst_dir):
+        r = zipfile.is_zipfile(zip_src)
+        if r:
+            fz = zipfile.ZipFile(zip_src, 'r')
+            for file in fz.namelist():
+                fz.extract(file, dst_dir)
+        else:
+            logger.info('非ZIP类型文件！')
